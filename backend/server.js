@@ -21,6 +21,21 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'vuelos';
 let baseLista = false;
+const ciudadesConAeropuerto = [
+  'Apartadó', 'Arauca', 'Armenia', 'Bahía Solano', 'Barrancabermeja', 'Barranquilla',
+  'Bogotá', 'Bucaramanga', 'Buenaventura', 'Cali', 'Capurganá', 'Caucasia',
+  'Cartagena', 'Cartago', 'Condoto', 'Corozal', 'Cúcuta', 'El Bagre', 'Florencia', 'Guapi', 'Ibagué',
+  'Inírida', 'Ipiales', 'La Macarena', 'Leticia', 'Maicao', 'Manizales', 'Medellín',
+  'Mitú', 'Mocoa', 'Montería', 'Neiva', 'Nuquí', 'Ocaña', 'Paipa', 'Palmira', 'Pasto', 'Pereira',
+  'Pitalito', 'Popayán', 'Providencia', 'Puerto Asís', 'Puerto Carreño',
+  'Puerto Gaitán', 'Puerto Leguízamo', 'Puerto Nariño', 'Quibdó', 'Riohacha',
+  'San Andrés', 'San José del Guaviare', 'San Vicente del Caguán', 'Saravena',
+  'Rionegro', 'Santa Marta', 'Tame', 'Tumaco',
+  'Valledupar', 'Villagarzón', 'Villavicencio', 'Yopal',
+];
+// Los factores se aplican en el servidor: la tarifa nunca se acepta desde el navegador.
+const factoresClase = { ECONOMICA: 1, EJECUTIVA: 1.5, PRIMERA: 2 };
+const margenCancelacionMs = 3 * 60 * 60 * 1000;
 
 app.use(cors());
 app.use(express.json({ limit: '20kb' }));
@@ -31,6 +46,16 @@ function validarCamposPermitidos(body, permitidos) {
     const error = new Error(`Campos no permitidos: ${noPermitidos.join(', ')}.`);
     error.status = 400;
     throw error;
+  }
+}
+
+function validarCiudadesDeRuta({ origen, destino }) {
+  for (const [nombre, valor] of [['origen', origen], ['destino', destino]]) {
+    if (!ciudadesConAeropuerto.includes(valor)) {
+      const error = new Error(`Selecciona una ciudad con aeropuerto para el ${nombre}.`);
+      error.status = 400;
+      throw error;
+    }
   }
 }
 
@@ -143,6 +168,27 @@ app.get('/api/auth/me', exigirBaseDeDatos, autenticar, async (req, res) => {
   res.json({ usuario: presentarUsuario(usuario) });
 });
 
+app.delete('/api/auth/me', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), async (req, res) => {
+  const reservasActivas = await Reserva.exists({
+    cliente: req.usuario.clienteId,
+    estado: { $ne: 'CANCELADA' },
+  });
+  const pagosPendientes = await Reserva.exists({
+    cliente: req.usuario.clienteId,
+    'pago.estado_pago': 'PENDIENTE',
+  });
+  if (reservasActivas || pagosPendientes) {
+    return res.status(409).json({
+      error: 'No puedes eliminar la cuenta mientras tengas reservas activas o pagos pendientes.',
+    });
+  }
+
+  await Reserva.deleteMany({ cliente: req.usuario.clienteId, estado: 'CANCELADA' });
+  await Cliente.deleteOne({ _id: req.usuario.clienteId });
+  await Usuario.deleteOne({ _id: req.usuario.id });
+  res.status(204).end();
+});
+
 app.get('/api/viajes', exigirBaseDeDatos, autenticar, async (req, res) => {
   const viajes = await Viaje.find({
     estado: 'PROGRAMADO',
@@ -174,18 +220,117 @@ app.get('/api/rutas', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (
   res.json(await Ruta.find().sort({ origen: 1 }));
 });
 
+app.get('/api/ciudades-aeropuerto', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), (req, res) => {
+  res.json(ciudadesConAeropuerto);
+});
+
 app.get('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
-  res.json(await Vehiculo.find().sort({ placa_o_matricula: 1 }));
+  const vehiculos = await Vehiculo.find().sort({ placa_o_matricula: 1 });
+  const viajes = await Viaje.find({
+    vehiculo: { $in: vehiculos.map(vehiculo => vehiculo._id) },
+    estado: { $ne: 'CANCELADO' },
+    fecha_hora_llegada: { $gt: new Date() },
+  }).select('vehiculo fecha_hora_salida fecha_hora_llegada');
+  const viajesPorNave = new Map();
+  for (const viaje of viajes) {
+    const idNave = viaje.vehiculo.toString();
+    if (!viajesPorNave.has(idNave)) viajesPorNave.set(idNave, []);
+    viajesPorNave.get(idNave).push({
+      fecha_hora_salida: viaje.fecha_hora_salida,
+      fecha_hora_llegada: viaje.fecha_hora_llegada,
+    });
+  }
+
+  res.json(vehiculos.map(vehiculo => ({
+    ...vehiculo.toJSON(),
+    viajes_programados: viajesPorNave.get(vehiculo._id.toString()) || [],
+  })));
 });
 
 app.post('/api/rutas', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarCamposPermitidos(req.body, ['origen', 'destino', 'duracion_estimada_min']);
+  validarCiudadesDeRuta(req.body);
   const ruta = await Ruta.create(req.body);
   res.status(201).json(ruta);
 });
 
+app.put('/api/rutas/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'La ruta');
+  validarCamposPermitidos(req.body, ['origen', 'destino', 'duracion_estimada_min']);
+  validarCiudadesDeRuta(req.body);
+  const ruta = await Ruta.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!ruta) return res.status(404).json({ error: 'La ruta no existe.' });
+  res.json(ruta);
+});
+
 app.post('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
   const vehiculo = await Vehiculo.create(req.body);
   res.status(201).json(vehiculo);
+});
+
+app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'La nave');
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
+  if (!['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos'].every(campo => campo in req.body)) {
+    return res.status(400).json({ error: 'Envía matrícula, tipo, capacidad y mapa completo de asientos.' });
+  }
+  const vehiculoActual = await Vehiculo.findById(req.params.id);
+  if (!vehiculoActual) return res.status(404).json({ error: 'La nave no existe.' });
+
+  const viajesConAsientos = await Viaje.find({ vehiculo: vehiculoActual._id }).distinct('_id');
+  const boletosExistentes = await Boleto.find({ viaje: { $in: viajesConAsientos } })
+    .select('numero_asiento clase_asiento -_id');
+  const asientosNuevos = new Map((req.body.asientos || []).map(asiento => [
+    String(asiento.numero_asiento || '').toUpperCase(),
+    asiento.clase_asiento || 'ECONOMICA',
+  ]));
+  const modificaAsientoReservado = boletosExistentes.some(boleto =>
+    asientosNuevos.get(boleto.numero_asiento) !== (boleto.clase_asiento || 'ECONOMICA'),
+  );
+  if (modificaAsientoReservado) {
+    return res.status(409).json({ error: 'No puedes quitar ni cambiar la clase de asientos que ya tienen reservas.' });
+  }
+
+  const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  res.json(vehiculo);
+});
+
+app.get('/api/usuarios', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  const usuarios = await Usuario.find({ rol: 'CLIENTE' })
+    .sort({ createdAt: -1 })
+    .populate('cliente', 'documento_identidad nombre apellido email');
+  const totales = await Reserva.aggregate([
+    { $group: { _id: '$cliente', cantidad: { $sum: 1 } } },
+  ]);
+  const reservasPorCliente = new Map(totales.map(item => [item._id.toString(), item.cantidad]));
+  res.json(usuarios.map(usuario => ({
+    id: usuario._id,
+    email: usuario.email,
+    creado: usuario.createdAt,
+    cliente: usuario.cliente,
+    reservas: reservasPorCliente.get(usuario.cliente?._id.toString()) || 0,
+  })));
+});
+
+app.delete('/api/usuarios/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'El usuario');
+  const usuario = await Usuario.findOne({ _id: req.params.id, rol: 'CLIENTE' });
+  if (!usuario) return res.status(404).json({ error: 'El usuario cliente no existe.' });
+  if (await Reserva.exists({ cliente: usuario.cliente })) {
+    return res.status(409).json({ error: 'No puedes eliminar usuarios que tengan reservas registradas.' });
+  }
+  await Promise.all([
+    Usuario.deleteOne({ _id: usuario._id }),
+    Cliente.deleteOne({ _id: usuario.cliente }),
+  ]);
+  res.status(204).end();
 });
 
 app.post('/api/viajes', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
@@ -194,6 +339,11 @@ app.post('/api/viajes', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async
   ]);
   validarObjectId(req.body.ruta, 'La ruta');
   validarObjectId(req.body.vehiculo, 'El vehículo');
+  const salida = new Date(req.body.fecha_hora_salida);
+  const llegada = new Date(req.body.fecha_hora_llegada);
+  if (Number.isNaN(salida.getTime()) || Number.isNaN(llegada.getTime()) || llegada <= salida) {
+    return res.status(400).json({ error: 'Ingresa fechas válidas y una llegada posterior a la salida.' });
+  }
 
   const [ruta, vehiculo] = await Promise.all([
     Ruta.findById(req.body.ruta),
@@ -203,7 +353,19 @@ app.post('/api/viajes', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async
     return res.status(404).json({ error: 'La ruta o el vehículo no existen.' });
   }
 
-  const viaje = await Viaje.create(req.body);
+  const viajeEnConflicto = await Viaje.exists({
+    vehiculo: vehiculo._id,
+    estado: { $ne: 'CANCELADO' },
+    fecha_hora_salida: { $lt: llegada },
+    fecha_hora_llegada: { $gt: salida },
+  });
+  if (viajeEnConflicto) {
+    return res.status(409).json({
+      error: 'La nave ya tiene un viaje programado que se cruza con ese horario.',
+    });
+  }
+
+  const viaje = await Viaje.create({ ...req.body, fecha_hora_salida: salida, fecha_hora_llegada: llegada });
   res.status(201).json(viaje);
 });
 
@@ -216,6 +378,8 @@ app.get('/api/viajes/:id/asientos', exigirBaseDeDatos, autenticar, async (req, r
   const ocupados = new Set(boletos.map(boleto => boleto.numero_asiento));
   const asientos = viaje.vehiculo.asientos.map(asiento => ({
     ...asiento.toJSON(),
+    clase_asiento: asiento.clase_asiento || 'ECONOMICA',
+    precio: Math.round(viaje.precio_base * (factoresClase[asiento.clase_asiento] || 1)),
     estado: ocupados.has(asiento.numero_asiento) ? 'OCUPADO' : 'DISPONIBLE',
   }));
 
@@ -246,10 +410,10 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
     return res.status(409).json({ error: 'El viaje no está disponible para reservar.' });
   }
 
-  const asientosVehiculo = new Set(
-    viaje.vehiculo.asientos.map(asiento => asiento.numero_asiento),
+  const asientosPorNumero = new Map(
+    viaje.vehiculo.asientos.map(asiento => [asiento.numero_asiento, asiento]),
   );
-  if (asientos.some(asiento => typeof asiento !== 'string' || !asientosVehiculo.has(asiento))) {
+  if (asientos.some(asiento => typeof asiento !== 'string' || !asientosPorNumero.has(asiento))) {
     return res.status(400).json({ error: 'Uno o más asientos no pertenecen al vehículo del viaje.' });
   }
 
@@ -258,10 +422,20 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
     return res.status(403).json({ error: 'La cuenta no tiene un perfil de cliente asociado.' });
   }
 
+  // El servidor calcula la tarifa para evitar que el cliente altere el precio enviado.
+  const preciosAsientos = asientos.map(numero => {
+    const asiento = asientosPorNumero.get(numero);
+    const clase = asiento.clase_asiento || 'ECONOMICA';
+    return {
+      numero_asiento: numero,
+      clase_asiento: clase,
+      precio_pagado: Math.round(viaje.precio_base * (factoresClase[clase] || 1)),
+    };
+  });
   const reserva = await Reserva.create({
     cliente: comprador._id,
     viaje: viaje._id,
-    monto_total: viaje.precio_base * asientos.length,
+    monto_total: preciosAsientos.reduce((total, asiento) => total + asiento.precio_pagado, 0),
     estado: 'CONFIRMADA',
     pago: {
       monto_pagado: 0,
@@ -272,12 +446,11 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
 
   try {
     // El índice único impide duplicados también si dos clientes reservan simultáneamente.
-    const boletos = await Boleto.insertMany(asientos.map(numero_asiento => ({
+    const boletos = await Boleto.insertMany(preciosAsientos.map(asiento => ({
       reserva: reserva._id,
       viaje: viaje._id,
       cliente: comprador._id,
-      numero_asiento,
-      precio_pagado: viaje.precio_base,
+      ...asiento,
     })), { ordered: true });
 
     reserva.boletos = boletos.map(boleto => boleto._id);
@@ -286,6 +459,11 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
       ...reserva.toJSON(),
       cliente: comprador,
       asientos: boletos.map(boleto => boleto.numero_asiento),
+      detalle_asientos: boletos.map(boleto => ({
+        numero_asiento: boleto.numero_asiento,
+        clase_asiento: boleto.clase_asiento,
+        precio_pagado: boleto.precio_pagado,
+      })),
     });
   } catch (error) {
     // El modo local puede ser standalone y no admitir transacciones; se revierte lo parcial.
@@ -308,18 +486,48 @@ app.get('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
 
   const reservaIds = reservas.map(reserva => reserva._id);
   const boletos = await Boleto.find({ reserva: { $in: reservaIds } })
-    .select('reserva numero_asiento precio_pagado');
+    .select('reserva numero_asiento clase_asiento precio_pagado');
   const boletosPorReserva = new Map();
   for (const boleto of boletos) {
     const id = boleto.reserva.toString();
     if (!boletosPorReserva.has(id)) boletosPorReserva.set(id, []);
-    boletosPorReserva.get(id).push(boleto.numero_asiento);
+    boletosPorReserva.get(id).push({
+      numero_asiento: boleto.numero_asiento,
+      clase_asiento: boleto.clase_asiento || 'ECONOMICA',
+      precio_pagado: boleto.precio_pagado,
+    });
   }
 
-  res.json(reservas.map(reserva => ({
-    ...reserva.toJSON(),
-    asientos: boletosPorReserva.get(reserva._id.toString()) || [],
-  })));
+  res.json(reservas.map(reserva => {
+    const detalle_asientos = boletosPorReserva.get(reserva._id.toString()) || [];
+    return {
+      ...reserva.toJSON(),
+      asientos: detalle_asientos.map(asiento => asiento.numero_asiento),
+      detalle_asientos,
+    };
+  }));
+});
+
+app.post('/api/reservas/:id/cancelar', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), async (req, res) => {
+  validarObjectId(req.params.id, 'La reserva');
+  const reserva = await Reserva.findOne({ _id: req.params.id, cliente: req.usuario.clienteId })
+    .populate('viaje', 'fecha_hora_salida');
+  if (!reserva) return res.status(404).json({ error: 'No encontramos esa reserva en tu cuenta.' });
+  if (reserva.estado === 'CANCELADA') {
+    await Boleto.deleteMany({ reserva: reserva._id });
+    return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
+  }
+  if (!reserva.viaje || reserva.viaje.fecha_hora_salida.getTime() - Date.now() < margenCancelacionMs) {
+    return res.status(409).json({ error: 'Solo puedes cancelar una reserva con al menos 3 horas de anticipación a la salida.' });
+  }
+
+  reserva.estado = 'CANCELADA';
+  reserva.pago.estado_pago = 'CANCELADO';
+  reserva.boletos = [];
+  await reserva.save();
+  // Los asientos se marcan ocupados por boletos; borrarlos libera el índice único del viaje.
+  await Boleto.deleteMany({ reserva: reserva._id });
+  res.json({ mensaje: 'Reserva cancelada y asientos liberados.' });
 });
 
 app.use((error, req, res, next) => {

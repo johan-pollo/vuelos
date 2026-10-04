@@ -39,6 +39,7 @@ CREATE TABLE asientos (
     id_vehiculo INT NOT NULL,
     numero_asiento VARCHAR(10) NOT NULL,
     ubicacion VARCHAR(20) COMMENT 'Ej: VENTANA, PASILLO, CENTRO',
+    clase_asiento ENUM('ECONOMICA', 'EJECUTIVA', 'PRIMERA') NOT NULL DEFAULT 'ECONOMICA',
     CONSTRAINT fk_asientos_vehiculos 
         FOREIGN KEY (id_vehiculo) REFERENCES vehiculos(id_vehiculo) 
         ON DELETE CASCADE ON UPDATE CASCADE,

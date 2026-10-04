@@ -19,6 +19,7 @@ async function crearDatosDemo() {
       numero_asiento: `${fila}${columna}`,
       ubicacion: indice % 4 === 0 || indice % 4 === 3 ? 'Ventana' : 'Pasillo',
       tipo_asiento: indice % 4 === 0 || indice % 4 === 3 ? 'VENTANA' : 'PASILLO',
+      clase_asiento: 'ECONOMICA',
     };
   });
 

@@ -121,8 +121,16 @@ const asientoSchema = new Schema({
   },
   tipo_asiento: {
     type: String,
-    enum: { values: ['VENTANA', 'PASILLO', 'CENTRO'], message: 'Tipo de asiento no válido.' },
+    enum: { values: ['VENTANA', 'PASILLO', 'CENTRO'], message: 'Ubicación de asiento no válida.' },
     default: 'PASILLO',
+  },
+  clase_asiento: {
+    type: String,
+    required: [true, 'Cada asiento debe tener una clase tarifaria.'],
+    enum: {
+      values: ['ECONOMICA', 'EJECUTIVA', 'PRIMERA'],
+      message: 'Clase de asiento no válida.',
+    },
   },
 }, { _id: false, strict: 'throw' });
 
@@ -210,7 +218,7 @@ const pagoSchema = new Schema({
   },
   estado_pago: {
     type: String,
-    enum: { values: ['PENDIENTE', 'COMPLETADO', 'RECHAZADO'], message: 'Estado de pago no válido.' },
+    enum: { values: ['PENDIENTE', 'COMPLETADO', 'RECHAZADO', 'CANCELADO'], message: 'Estado de pago no válido.' },
     default: 'PENDIENTE',
   },
 }, { _id: false, strict: 'throw' });
@@ -238,6 +246,11 @@ const boletoSchema = new Schema({
     trim: true,
     uppercase: true,
     match: [/^[A-Z0-9-]{1,6}$/, 'El número de asiento no es válido.'],
+  },
+  clase_asiento: {
+    type: String,
+    required: true,
+    enum: ['ECONOMICA', 'EJECUTIVA', 'PRIMERA'],
   },
   precio_pagado: { type: Number, required: true, min: [0.01, 'El precio del boleto debe ser mayor que cero.'] },
   fecha_emision: { type: Date, default: Date.now },
