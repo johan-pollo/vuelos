@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const crypto = require('node:crypto');
-const { autenticar, autorizar, crearToken } = require('./auth');
+const { autenticar, autenticarOpcional, autorizar, crearToken } = require('./auth');
 const { connectToMongoDB, disconnectFromMongoDB } = require('./db');
 const {
   Usuario,
@@ -321,7 +321,7 @@ app.delete('/api/auth/me', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), 
   res.status(204).end();
 });
 
-app.get('/api/viajes', exigirBaseDeDatos, autenticar, async (req, res) => {
+app.get('/api/viajes', exigirBaseDeDatos, autenticarOpcional, async (req, res) => {
   const filtro = req.usuario.rol === 'ADMIN'
     ? {}
     : { estado: 'PROGRAMADO', fecha_hora_salida: { $gte: new Date() } };
