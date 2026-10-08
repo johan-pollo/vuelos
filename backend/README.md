@@ -20,13 +20,13 @@ const { MongoClient } = require('mongodb');
 
 ## Colecciones
 
-- `usuarios`: correo, hash de contraseña, rol (`ADMIN` o `CLIENTE`) y perfil asociado.
+- `usuarios`: correo, nombre de usuario, hash de contraseña, rol (`ADMIN` o `CLIENTE`) y perfil asociado.
 - `clientes`: documento de identidad único, nombre, apellido, correo único y teléfono.
 - `rutas`: origen, destino y duración; la combinación origen/destino es única.
 - `vehiculos`: placa única, tipo y asientos embebidos. Cada asiento tiene ubicación y clase independiente (`ECONOMICA`, `EJECUTIVA` o `PRIMERA`); la capacidad debe coincidir con los asientos definidos.
 - `viajes`: referencias a ruta y vehículo, fechas, precio y estado.
-- `reservas`: cliente, viaje, boletos, total, estado e información del pago.
-- `boletos`: cliente, reserva, viaje, asiento y precio. El índice único `{ viaje, numero_asiento }` impide vender el mismo asiento dos veces.
+- `reservas`: cliente, código de consulta, viaje de ida y, opcionalmente, viaje de regreso; conserva boletos, total, estado e información del pago.
+- `boletos`: cliente, reserva, trayecto, asiento, precio y, opcionalmente, los datos del pasajero asignado. El índice único `{ viaje, numero_asiento }` impide vender el mismo asiento dos veces.
 
 Los asientos se guardan como documentos embebidos dentro de `vehiculos`, no en una colección MongoDB independiente. Los registros antiguos sin `clase_asiento` se leen como económicos; al editar una nave desde el panel, la clase se guarda explícitamente.
 
@@ -86,18 +86,49 @@ El precio base del viaje corresponde a clase económica; ejecutiva aplica factor
 
 Al cancelar una reserva, el backend conserva el registro histórico con estado `CANCELADA` y elimina sus boletos. El mapa de asientos deriva la ocupación de esos boletos, así que quedan disponibles otra vez. El índice único sigue protegiendo las compras concurrentes.
 
+## Vistas del frontend
+
+- **CLIENTE:** la API ofrece un único `POST /api/auth/login` para clientes y administradores; el rol de la cuenta determina los permisos. El registro acepta `username` opcional; si no se envía, el servidor crea uno a partir del correo. En `/vuelos` consulta los próximos viajes, filtra la lista por origen, destino y fecha, selecciona entre 1 y 10 asientos disponibles y confirma la reserva. El mapa permite filtrar por clase; cada asiento muestra su precio calculado por el servidor. La reserva queda con pago `PENDIENTE`, porque no existe pasarela de pagos.
+- **CLIENTE:** `/mis-reservas` muestra únicamente sus reservas y permite cancelar cuando se cumple el límite del backend. La API habilita editar perfil con `PATCH /api/auth/me`, cambiar contraseña con `PATCH /api/auth/me/password`, consultar una reserva por código y guardar pasajeros por boleto. Estas operaciones requieren conexión desde la interfaz para ser visibles allí.
+- **ADMIN:** `/admin/rutas` crea y modifica rutas con listas desplegables alimentadas por `GET /api/ciudades-aeropuerto`. `/admin/naves` crea y modifica aviones y buses, configurando en cada asiento número, ubicación, posición y clase; la capacidad se deriva del número de asientos y no es obligatorio incluir las tres clases en una nave.
+- **ADMIN:** `/admin/vuelos/nuevo` crea viajes usando rutas y naves existentes; `GET /api/viajes` incluye todos los viajes para ADMIN (también pasados y cancelados), mientras que CLIENTE solo recibe viajes programados futuros. `DELETE /api/viajes/:id` elimina solo viajes sin reservas ni boletos; la interfaz debe conectarlo para ofrecer el control. `/admin/reservas` consulta las reservas y `/admin/usuarios` permite eliminar clientes que no tengan reservas. La API aplica autorización por rol, aunque el inicio de sesión es único.
+
 ## Rutas principales
 
 - `GET /api/health` y `GET /api/estado`: salud pública de Express y ping a MongoDB; responde `503` si la base no está lista.
-- `POST /api/auth/registro`: crea siempre una cuenta `CLIENTE` y su perfil.
-- `POST /api/auth/login`, `GET /api/auth/me` y `DELETE /api/auth/me`: sesión y eliminación protegida de cuenta cliente.
+- `POST /api/auth/registro`: crea una cuenta `CLIENTE`, su perfil y un nombre de usuario único; `username` se puede enviar explícitamente.
+- `POST /api/auth/login`: autentica ambos roles en el mismo endpoint. `GET /api/auth/me`, `PATCH /api/auth/me`, `PATCH /api/auth/me/password` y `DELETE /api/auth/me`: consulta/edición de perfil, cambio de contraseña y eliminación protegida de cuenta cliente.
 - `GET /api/viajes` y `GET /api/viajes/:id/asientos`: consulta disponible para cuentas autenticadas.
 - `GET /api/ciudades-aeropuerto`, `GET /api/rutas`, `POST/PUT /api/rutas`: catálogo y mantenimiento exclusivo de ADMIN.
 - `GET /api/vehiculos`, `POST/PUT /api/vehiculos`: mantenimiento de naves y clases de asientos exclusivo de ADMIN.
 - `GET/DELETE /api/usuarios`: listado y eliminación de clientes sin reservas, exclusivo de ADMIN.
-- `POST /api/viajes`: crear viaje, exclusivo de ADMIN.
-- `POST /api/reservas`: reservar de 1 a 10 asientos como CLIENTE autenticado.
-- `GET /api/reservas?limite=8`: ADMIN ve todas; CLIENTE ve solo las propias. `POST /api/reservas/:id/cancelar` solo permite cancelar reservas propias.
+- `POST/DELETE /api/viajes`: crear y eliminar viajes, exclusivo de ADMIN; no se eliminan viajes con historial de reservas o boletos.
+- `POST /api/reservas`: reservar de 1 a 10 asientos como CLIENTE autenticado. Se puede agregar `regreso: { viaje, asientos }` para reservar un trayecto inverso que salga después de la llegada de ida; las tarifas se calculan para ambas piernas en el servidor.
+- `GET /api/reservas?limite=8`: ADMIN ve todas; CLIENTE ve solo las propias. `GET /api/reservas/codigo/:codigo` permite consultar públicamente estado, trayectos y asientos mediante un código aleatorio de 128 bits; no entrega datos personales del cliente o pasajeros.
+- `PATCH /api/reservas/:id/pasajeros`: permite al dueño autenticado guardar los datos de un pasajero por boleto, identificando cada boleto por su id. `POST /api/reservas/:id/cancelar` solo permite cancelar reservas propias y aplica el límite de anticipación a las salidas de todos sus trayectos.
+
+El cambio de perfil acepta cualquier subconjunto de `username`, `nombre`, `apellido` y `telefono`. El cambio de contraseña recibe `contrasena_actual` y `contrasena_nueva`; se conserva la sesión actual y se valida la contraseña antes de reemplazar su hash.
+
+Ejemplo de reserva de ida y regreso, con los pasajeros ligados a los asientos de cada trayecto:
+
+```json
+{
+  "viaje": "ID_VIAJE_IDA",
+  "asientos": ["1A"],
+  "pasajeros": [
+    { "numero_asiento": "1A", "nombre": "Ana", "apellido": "Pérez", "documento_identidad": "12345678" }
+  ],
+  "regreso": {
+    "viaje": "ID_VIAJE_REGRESO",
+    "asientos": ["2A"],
+    "pasajeros": [
+      { "numero_asiento": "2A", "nombre": "Ana", "apellido": "Pérez", "documento_identidad": "12345678" }
+    ]
+  }
+}
+```
+
+Si no se envían pasajeros al crear la reserva, se pueden guardar después con `PATCH /api/reservas/:id/pasajeros`, usando `pasajeros: [{ boleto, nombre, apellido, documento_identidad }]`. La consulta pública usa el código devuelto al crear una reserva; las reservas antiguas, creadas antes de incorporar códigos, no tienen código consultable.
 
 Mongoose y la API validan roles, campos extra, enums, tipos, longitudes, correo, teléfono, fechas, precios, capacidad y referencias. Los datos inválidos responden `400`; asientos o datos duplicados responden `409`; la base desconectada responde `503`.
 
@@ -106,7 +137,8 @@ El índice único de MongoDB protege contra dos compras simultáneas del mismo a
 ## Prueba rápida
 
 1. Confirma que `http://localhost:3000/api/health` indique Express y MongoDB conectados.
-2. Inicia sesión con `ADMIN_EMAIL` y `ADMIN_PASSWORD` y crea un viaje.
-3. Registra una cuenta de cliente desde el panel, elige un asiento libre y confirma la reserva.
-4. Comprueba que el asiento aparezca ocupado y la reserva figure en la cuenta del cliente.
-5. Inicia sesión como ADMIN para revisar todas las reservas. Intenta reservar un asiento ocupado: el servidor debe responder `409`.
+2. Inicia sesión como ADMIN, crea una ruta eligiendo dos ciudades con aeropuerto y configura una nave con asientos de una o más clases.
+3. Crea un viaje para esa ruta y nave.
+4. Registra o inicia sesión como CLIENTE, selecciona un vuelo y filtra sus asientos por clase.
+5. Confirma una reserva y revisa `/mis-reservas`; el pago debe figurar pendiente. Intenta seleccionar un asiento ya ocupado: el servidor debe responder `409`.
+6. Inicia sesión como ADMIN para revisar reservas y clientes; la eliminación de un usuario con reservas debe ser rechazada.

@@ -17,12 +17,13 @@ async function autenticar(req, res, next) {
 
   try {
     const payload = jwt.verify(token, jwtSecret);
-    const usuario = await Usuario.findById(payload.sub).select('email rol cliente');
+    const usuario = await Usuario.findById(payload.sub).select('email username rol cliente');
     if (!usuario) return res.status(401).json({ error: 'La sesión ya no es válida.' });
 
     req.usuario = {
       id: usuario._id,
       email: usuario.email,
+      username: usuario.username,
       rol: usuario.rol,
       clienteId: usuario.cliente,
     };

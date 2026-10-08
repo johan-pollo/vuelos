@@ -56,6 +56,16 @@ const usuarioSchema = new Schema({
     match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'El correo electrónico no es válido.'],
     unique: true,
   },
+  username: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    minlength: [3, 'El nombre de usuario debe tener al menos 3 caracteres.'],
+    maxlength: [30, 'El nombre de usuario no puede superar 30 caracteres.'],
+    match: [/^[a-z0-9_.-]+$/, 'El nombre de usuario solo admite letras, números, punto, guion y guion bajo.'],
+    unique: true,
+    sparse: true,
+  },
   password_hash: {
     type: String,
     required: [true, 'La contraseña cifrada es obligatoria.'],
@@ -223,9 +233,36 @@ const pagoSchema = new Schema({
   },
 }, { _id: false, strict: 'throw' });
 
+const pasajeroSchema = new Schema({
+  nombre: {
+    type: String,
+    required: [true, 'El nombre del pasajero es obligatorio.'],
+    trim: true,
+    minlength: [2, 'El nombre del pasajero debe tener al menos 2 caracteres.'],
+    maxlength: [50, 'El nombre del pasajero no puede superar 50 caracteres.'],
+  },
+  apellido: {
+    type: String,
+    required: [true, 'El apellido del pasajero es obligatorio.'],
+    trim: true,
+    minlength: [2, 'El apellido del pasajero debe tener al menos 2 caracteres.'],
+    maxlength: [50, 'El apellido del pasajero no puede superar 50 caracteres.'],
+  },
+  documento_identidad: {
+    type: String,
+    required: [true, 'El documento del pasajero es obligatorio.'],
+    trim: true,
+    minlength: [5, 'El documento del pasajero debe tener al menos 5 caracteres.'],
+    maxlength: [25, 'El documento del pasajero no puede superar 25 caracteres.'],
+    match: [/^[A-Za-z0-9.-]+$/, 'El documento del pasajero contiene caracteres no permitidos.'],
+  },
+}, { _id: false, strict: 'throw' });
+
 const reservaSchema = new Schema({
   cliente: { type: Schema.Types.ObjectId, ref: 'Cliente', required: [true, 'El cliente es obligatorio.'] },
   viaje: { type: Schema.Types.ObjectId, ref: 'Viaje', required: [true, 'El viaje es obligatorio.'] },
+  viaje_regreso: { type: Schema.Types.ObjectId, ref: 'Viaje', default: null },
+  codigo_reserva: { type: String, trim: true, uppercase: true, unique: true, sparse: true },
   boletos: [{ type: Schema.Types.ObjectId, ref: 'Boleto' }],
   monto_total: { type: Number, required: true, min: [0.01, 'El total debe ser mayor que cero.'] },
   estado: {
@@ -252,6 +289,7 @@ const boletoSchema = new Schema({
     required: true,
     enum: ['ECONOMICA', 'EJECUTIVA', 'PRIMERA'],
   },
+  pasajero: { type: pasajeroSchema, default: undefined },
   precio_pagado: { type: Number, required: true, min: [0.01, 'El precio del boleto debe ser mayor que cero.'] },
   fecha_emision: { type: Date, default: Date.now },
 }, opcionesEstrictas);
