@@ -75,16 +75,16 @@ La autenticación guarda el token JWT y el usuario en el almacenamiento local de
 - Reserva opcional de ida y regreso. El vuelo de regreso se limita a la ruta inversa y a una salida posterior a la llegada de ida.
 - Registro de nombre, apellido y documento por cada asiento. El backend calcula el precio según la clase tarifaria de cada asiento.
 - Confirmación de la reserva, pago simulado con tarjeta, visualización del código y consulta pública de una reserva por código, sin revelar información personal.
-- Página **Mis reservas** con datos y boletos, edición de pasajeros y cancelación sujeta a la regla de tres horas del backend.
-- Página de cuenta para editar perfil y cambiar contraseña. La cuenta cliente se puede eliminar solo cuando la API confirma que no hay reservas activas ni pagos pendientes.
+- Página **Mis reservas** con filtros por estado, pago de reservas pendientes y datos de pasajeros de solo lectura; permite habilitar edición hasta tres horas antes de la salida.
+- Página de cuenta para editar perfil, alternar la visibilidad de las contraseñas y eliminar la cuenta después de confirmar la contraseña actual.
 
 ## Funciones de administración
 
-- Dashboard con resumen de vuelos, reservas, asientos disponibles e importes de reservas.
-- Creación de viajes a partir de rutas y naves ya registradas.
-- Listado y eliminación de viajes. La eliminación se envía al backend, que la rechaza si el viaje tiene reservas o boletos.
+- Dashboard con resumen de vuelos, reservas, asientos disponibles e importes de reservas; incluye acceso para reservar y pagar un asiento a nombre de un cliente.
+- Creación de viajes a partir de rutas y naves ya registradas. Los estados se calculan automáticamente y la cancelación manual solo se permite antes de la salida.
+- Listado de vuelos ordenado por fecha de creación con filtros por origen, destino, nave, fecha y estado; permite cancelar o eliminar vuelos sujetos a las validaciones del backend.
 - Catálogo de rutas: consultar, crear y editar rutas con origen y destino tomados del catálogo de ciudades con aeropuerto.
-- Catálogo de naves: consultar, crear y editar buses y aviones; configurar los asientos por clase **económica**, **ejecutiva** y **primera**. La capacidad se calcula a partir de los asientos configurados.
+- Catálogo de naves: consultar, crear y editar aviones; configurar los asientos por clase **económica**, **ejecutiva** y **primera**. La capacidad se calcula a partir de los asientos configurados.
 - Listado y eliminación de cuentas cliente. La API impide eliminar clientes que tengan reservas.
 - Consulta de reservas para la administración.
 
@@ -96,11 +96,11 @@ Las solicitudes usan el prefijo `/api`, definido por `VITE_API_URL`.
 | --- | --- |
 | Estado de servicio | `GET /health` |
 | Registro e inicio de sesión unificado | `POST /auth/registro`, `POST /auth/login` |
-| Ver y actualizar perfil; cambiar/eliminar cuenta | `GET /auth/me`, `PATCH /auth/me`, `PATCH /auth/me/password`, `DELETE /auth/me` |
+| Ver y actualizar perfil; cambiar/eliminar cuenta | `GET /auth/me`, `PATCH /auth/me`, `PATCH /auth/me/password`, `DELETE /auth/me` (con contraseña actual) |
 | Consultar vuelos y mapa de asientos | `GET /viajes`, `GET /viajes/:id/asientos` |
 | Catálogo de ciudades, rutas y naves | `GET /ciudades-aeropuerto`, `GET /rutas`, `POST/PUT /rutas`, `GET /vehiculos`, `POST/PUT /vehiculos` |
 | Administrar clientes | `GET /usuarios`, `DELETE /usuarios/:id` |
-| Crear o eliminar viaje | `POST /viajes`, `DELETE /viajes/:id` |
+| Crear, eliminar o cancelar viaje | `POST /viajes`, `DELETE /viajes/:id`, `PATCH /viajes/:id/cancelar` |
 | Crear reserva de ida o ida/regreso | `POST /reservas` |
 | Simular el pago de una reserva con tarjeta | `POST /reservas/:id/pagar` |
 | Consultar reservas | `GET /reservas`, `GET /reservas/codigo/:codigo` |
@@ -112,9 +112,10 @@ La lista anterior documenta las integraciones de interfaz para las operaciones q
 
 - El pago disponible es una **simulación**: después de crear una reserva, el frontend envía a `POST /reservas/:id/pagar` el método `TARJETA` y un número de 16 dígitos. El backend marca la reserva como confirmada y devuelve el estado y la referencia del pago; no se realiza un cobro real.
 - El formulario limita el número de tarjeta a 16 dígitos, el CVC a 3 y la fecha a `MM/AA`, validando que no esté vencida. El CVC y la fecha solo se validan en el navegador: no se almacenan y no se envían al API.
+- Cualquier número de 16 dígitos se acepta en la simulación; no hay comprobación de validez bancaria ni cobro real.
 - MongoDB se conecta exclusivamente desde el backend con `MONGODB_URI` y `MONGODB_DB_NAME` de `backend/.env`. El frontend no debe leer ese archivo ni conectarse directamente a MongoDB; consume la API mediante `VITE_API_URL` (por defecto `http://localhost:3000/api`).
 - El login devuelve el mismo error cuando el correo no existe o la contraseña es incorrecta. La interfaz ofrece pasar al registro cuando falla el login, pero la API no permite asegurar cuál de las dos causas ocurrió.
-- En la implementación actual, `GET /api/viajes` sin sesión responde `500` porque el manejador del backend lee el rol de una sesión opcional que no existe. Por eso las pantallas de vuelos piden iniciar sesión; los visitantes no pueden consultar vuelos anónimamente hasta corregir ese error en el backend.
+- `GET /api/viajes` permite consultar vuelos programados futuros sin sesión; reservar asientos sí requiere autenticación.
 - No hay cuentas predeterminadas del frontend. El usuario ADMIN depende de `ADMIN_EMAIL` y `ADMIN_PASSWORD` configurados en el entorno privado del backend y se crea/actualiza con `npm run admin:create`. Las cuentas cliente se crean en el formulario de registro. No se deben publicar contraseñas reales en este README.
 - La consulta pública depende de que la API devuelva `codigo_reserva`; las reservas anteriores a la incorporación de códigos pueden no ser consultables por esta vía.
 

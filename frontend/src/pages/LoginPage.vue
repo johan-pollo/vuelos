@@ -107,7 +107,7 @@ async function submit() {
           <q-input v-model="form.nombre" class="register-name-field" label="Nombres" outlined dense required minlength="3" maxlength="40" autocomplete="given-name" />
           <q-input v-model="form.apellido" class="register-name-field" label="Apellidos" outlined dense required minlength="3" maxlength="40" autocomplete="family-name" />
           <q-select v-model="form.tipoDocumento" class="register-document-type" :options="documentTypes" label="Tipo de documento" outlined dense emit-value map-options />
-          <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" outlined dense required minlength="3" maxlength="21" />
+          <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" outlined dense required minlength="5" maxlength="25" />
           <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense maxlength="15" autocomplete="tel" />
           <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="email" outlined dense required maxlength="100" autocomplete="email" />
           <q-input v-model="form.password" class="register-account-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required minlength="10" maxlength="72" autocomplete="new-password" hint="Usa entre 10 y 72 caracteres, con al menos una letra y un número.">
@@ -134,7 +134,7 @@ async function submit() {
 
         <div v-if="mode === 'login'" class="form-grid">
           <q-input v-model="form.email" label="Correo electrónico" type="email" outlined dense required maxlength="100" autocomplete="email" />
-          <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required :minlength="mode === 'register' ? 10 : undefined" :maxlength="mode === 'register' ? 72 : undefined" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
+          <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required :minlength="mode === 'register' ? 10 : undefined" maxlength="72" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
             <template #append>
               <q-btn
                 flat

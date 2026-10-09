@@ -115,14 +115,14 @@ function logout() {
           <h2>Servicio al cliente</h2>
           <p class="footer-contact">Línea de atención: +57 301 793 9273</p>
           <p class="footer-contact">Clientes@aerojoher.com</p>
-          <router-link to="/consultar-reserva">Consultar reserva</router-link>
+          <router-link to="/mis-reservas">Mis reservas</router-link>
         </section>
 
         <section class="footer-column">
           <h2>Información</h2>
           <router-link to="/vuelos">Vuelos y destinos</router-link>
           <router-link to="/login">Mi cuenta</router-link>
-          <a href="mailto:Clientes@aerojoher.com?subject=Oportunidades%20de%20equipo">Únete a nuestro equipo</a>
+          <span>Únete a nuestro equipo</span>
         </section>
 
         <section class="footer-column">

@@ -1,11 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useBookingStore } from '../stores/bookingStore'
+import { useAuthStore } from '../stores/authStore'
 
 const router = useRouter()
+const route = useRoute()
 const bookingStore = useBookingStore()
+const authStore = useAuthStore()
 const loading = ref(false)
 const cardNumber = ref('')
 const securityCode = ref('')
@@ -58,23 +61,23 @@ function validateExpiry(value) {
 onMounted(() => {
   if (!reservation.value?._id) {
     Notify.create({ type: 'warning', message: 'Primero debes crear una reserva para realizar el pago.' })
-    router.replace({ name: 'confirmation' })
+    router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
     return
   }
   if (reservation.value.pago?.estado_pago === 'COMPLETADO') {
-    router.replace({ name: 'ticket' })
+    router.replace({ name: authStore.isAdmin ? 'admin-reservas' : 'ticket' })
     return
   }
   if (!['PENDIENTE', 'RECHAZADO'].includes(reservation.value.pago?.estado_pago)) {
     Notify.create({ type: 'warning', message: 'Esta reserva no está disponible para pagar.' })
-    router.replace({ name: 'confirmation' })
+    router.replace({ name: authStore.isAdmin ? 'admin-reservas' : 'confirmation' })
   }
 })
 
 async function submitPayment() {
   if (!reservation.value?._id) {
     Notify.create({ type: 'negative', message: 'No hay una reserva pendiente para pagar.' })
-    router.replace({ name: 'confirmation' })
+    router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
     return
   }
   if (!/^\d{16}$/.test(cardNumber.value)) {
@@ -94,7 +97,12 @@ async function submitPayment() {
   try {
     await bookingStore.payReservation(cardNumber.value)
     Notify.create({ type: 'positive', message: 'Pago aprobado. Tu reserva está confirmada.' })
-    router.push({ name: 'ticket' })
+    const destination = authStore.isAdmin
+      ? { name: 'admin-reservas' }
+      : route.query.returnTo === 'reservations'
+        ? { name: 'my-reservations' }
+        : { name: 'ticket' }
+    router.push(destination)
   } catch (error) {
     Notify.create({
       type: 'negative',
@@ -189,7 +197,7 @@ async function submitPayment() {
         </p>
 
         <div class="form-actions">
-          <q-btn flat label="Volver" :to="{ name: 'confirmation' }" class="back-navigation" />
+          <q-btn flat label="Volver" :to="authStore.isAdmin ? { name: 'admin-dashboard' } : { name: 'confirmation' }" class="back-navigation" />
           <q-btn
             color="primary"
             type="submit"

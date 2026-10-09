@@ -22,6 +22,12 @@ function formatCurrency(value) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
 }
 
+function paymentStatus(reservation) {
+  if (reservation.estado === 'CANCELADA' || reservation.pago?.estado_pago === 'CANCELADO') return 'Cancelado'
+  if (reservation.pago?.estado_pago === 'COMPLETADO') return 'Pagado'
+  return 'Pendiente'
+}
+
 function formatSeats(reservation) {
   const tickets = reservation.detalle_asientos || []
   const legs = [
@@ -38,7 +44,7 @@ function formatSeats(reservation) {
 </script>
 
 <template>
-  <q-page class="page-shell">
+  <q-page class="page-shell admin-page-shell">
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
@@ -62,7 +68,7 @@ function formatSeats(reservation) {
           ].filter(Boolean).join(' · ') },
           { name: 'asientos', label: 'Asientos', field: formatSeats },
           { name: 'estado', label: 'Estado', field: row => row.estado },
-          { name: 'pago', label: 'Pago', field: row => `${row.pago?.estado_pago || 'PENDIENTE'} · ${row.pago?.metodo_pago || 'PENDIENTE'}` },
+          { name: 'pago', label: 'Pago', field: row => paymentStatus(row) },
           { name: 'total', label: 'Total', field: row => formatCurrency(row.monto_total) },
         ]" row-key="_id" flat bordered />
       </div>

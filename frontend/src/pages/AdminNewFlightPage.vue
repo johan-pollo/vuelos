@@ -13,7 +13,6 @@ const form = ref({
   fecha_hora_salida: '',
   fecha_hora_llegada: '',
   precio_base: '',
-  estado: 'PROGRAMADO',
 })
 const loading = ref(false)
 const minimumDepartureDateTime = computed(() => {
@@ -72,7 +71,6 @@ async function submit() {
       fecha_hora_salida: new Date(form.value.fecha_hora_salida).toISOString(),
       fecha_hora_llegada: new Date(form.value.fecha_hora_llegada).toISOString(),
       precio_base: price,
-      estado: form.value.estado,
     })
 
     Notify.create({ type: 'positive', message: 'Viaje creado correctamente.' })
@@ -86,8 +84,8 @@ async function submit() {
 </script>
 
 <template>
-  <q-page class="page-shell">
-    <div class="form-card shadow-2">
+  <q-page class="page-shell admin-page-shell">
+    <div class="form-card admin-form-shell shadow-2">
       <div class="page-header compact-header">
         <div>
           <p class="eyebrow">Administración</p>
@@ -109,6 +107,10 @@ async function submit() {
             <q-select v-model="form.ruta" :options="flightStore.routeOptions.map((route) => ({ label: `${route.origen} → ${route.destino}`, value: route._id }))" label="Ruta" emit-value map-options outlined dense required />
             <q-select v-model="form.vehiculo" :options="flightStore.vehicleOptions.map((vehicle) => ({ label: `${vehicle.placa_o_matricula} · ${vehicle.capacidad_asientos} asientos`, value: vehicle._id }))" label="Nave" emit-value map-options outlined dense required />
           </div>
+          <div class="admin-actions q-mt-sm">
+            <q-btn flat color="primary" icon="add_road" label="Crear ruta" :to="{ name: 'admin-catalogs', query: { tab: 'rutas' } }" />
+            <q-btn flat color="primary" icon="airplanemode_active" label="Crear nave" :to="{ name: 'admin-catalogs', query: { tab: 'naves' } }" />
+          </div>
           <p v-if="selectedRoute" class="text-caption text-grey-7 q-mt-sm">Duración estimada de la ruta: {{ formatDuration(selectedRoute.duracion_estimada_min) }}.</p>
           <p v-if="selectedVehicle" class="text-caption text-grey-7 q-mt-sm">Capacidad de la nave: {{ selectedVehicle.capacidad_asientos }} asientos.</p>
         </section>
@@ -125,20 +127,6 @@ async function submit() {
             <q-input v-model="form.fecha_hora_salida" type="datetime-local" label="Salida" :min="minimumDepartureDateTime" outlined dense required />
             <q-input v-model="form.fecha_hora_llegada" type="datetime-local" label="Llegada" :min="minimumArrivalDateTime" outlined dense required />
             <q-input v-model.number="form.precio_base" type="number" min="1" max="100000000" step="1" inputmode="numeric" label="Precio base" prefix="$" outlined dense required />
-            <q-select
-              v-model="form.estado"
-              :options="[
-                { label: 'Programado', value: 'PROGRAMADO' },
-                { label: 'En curso', value: 'EN_CURSO' },
-                { label: 'Finalizado', value: 'FINALIZADO' },
-                { label: 'Cancelado', value: 'CANCELADO' },
-              ]"
-              label="Estado del viaje"
-              emit-value
-              map-options
-              outlined
-              dense
-            />
           </div>
         </section>
 

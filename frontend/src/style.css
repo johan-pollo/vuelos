@@ -1038,6 +1038,11 @@ p {
   padding: 48px 20px;
 }
 
+.admin-page-shell {
+  justify-content: flex-start;
+  padding: clamp(28px, 4vw, 56px) clamp(20px, 4vw, 64px);
+}
+
 .form-card,
 .lookup-card,
 .summary-card,
@@ -1750,12 +1755,38 @@ p {
 }
 
 .admin-shell {
-  width: min(100%, 1180px);
-  padding: clamp(20px, 3vw, 34px);
+  width: min(100%, 1500px);
+  padding: clamp(28px, 3.5vw, 48px);
   border: 1px solid var(--aero-line);
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 18px 42px rgba(22, 15, 27, 0.08);
+}
+
+.admin-dashboard-shell {
+  width: min(100%, 1500px);
+}
+
+.admin-form-shell {
+  width: min(100%, 1200px);
+  padding: clamp(28px, 3.5vw, 48px);
+}
+
+.admin-shell h2,
+.admin-form-shell h2 {
+  font-size: clamp(1.7rem, 2.4vw, 2.25rem);
+}
+
+.admin-shell .q-field--dense .q-field__control,
+.admin-shell .q-field--dense .q-field__marginal,
+.admin-form-shell .q-field--dense .q-field__control,
+.admin-form-shell .q-field--dense .q-field__marginal {
+  min-height: 48px;
+}
+
+.admin-shell .q-table tbody td,
+.admin-shell .q-table thead th {
+  font-size: 0.95rem;
 }
 
 .admin-dashboard-card {
@@ -1763,8 +1794,12 @@ p {
 }
 
 .admin-page-header .admin-dashboard-title {
-  font-size: clamp(1.2rem, 1.5vw, 1.4rem);
+  font-size: clamp(1.75rem, 2.5vw, 2.35rem);
   line-height: 1.2;
+}
+
+.admin-dashboard-shell .admin-page-header {
+  margin-bottom: 24px;
 }
 
 .admin-page-header {
@@ -1794,6 +1829,10 @@ p {
 .admin-dashboard-actions {
   flex-direction: column;
   align-items: flex-end;
+}
+
+.admin-dashboard-shell .admin-subtitle {
+  font-size: 1rem;
 }
 
 .admin-nav-grid {
@@ -1832,18 +1871,24 @@ p {
 .admin-hero {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 18px;
+  margin-top: 20px;
 }
 
 .admin-stat {
   display: flex;
   min-width: 0;
+  min-height: 148px;
   align-items: center;
+  justify-content: center;
+  flex-direction: column;
   gap: 12px;
-  padding: 18px 14px;
+  padding: 22px 16px;
   border: 1px solid var(--aero-line);
-  border-radius: 16px;
+  border-radius: 18px;
   background: #fff;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(22, 15, 27, 0.045);
 }
 
 .admin-stat-icon {
@@ -1859,17 +1904,28 @@ p {
 }
 
 .admin-stat small {
+  display: block;
+  max-width: 100%;
   color: var(--muted);
-  font-size: 0.75rem;
-  line-height: 1.35;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
 }
 
 .admin-stat h3 {
-  margin-top: 5px;
+  margin: 0;
   color: var(--aero-navy);
-  font-size: clamp(1rem, 1.5vw, 1.45rem);
+  font-size: clamp(1.3rem, 1.8vw, 1.8rem);
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+}
+
+.admin-flight-filters {
+  width: 100%;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  gap: 12px;
 }
 
 .admin-note {
@@ -2094,9 +2150,22 @@ p {
   .admin-hero {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-flight-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
+  .admin-page-shell {
+    padding: 24px 16px;
+  }
+
+  .admin-shell,
+  .admin-form-shell {
+    padding: 22px 18px;
+  }
+
   .flight-list {
     grid-template-columns: 1fr;
   }
@@ -2108,6 +2177,10 @@ p {
   }
 
   .admin-nav-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-flight-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2166,6 +2239,10 @@ p {
 
   .admin-hero,
   .admin-nav-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-flight-filters {
     grid-template-columns: 1fr;
   }
 

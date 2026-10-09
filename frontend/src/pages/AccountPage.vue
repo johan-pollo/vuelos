@@ -8,6 +8,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 const savingProfile = ref(false)
 const savingPassword = ref(false)
+const showCurrentPassword = ref(false)
+const showNewPassword = ref(false)
 const profile = reactive({
   username: authStore.user?.username || '',
   nombre: authStore.user?.cliente?.nombre || '',
@@ -78,11 +80,18 @@ function confirmDeleteAccount() {
   Dialog.create({
     title: 'Eliminar cuenta',
     message: 'Esta acción es permanente. No podrás eliminar tu cuenta mientras tengas reservas activas o pagos pendientes.',
+    prompt: {
+      model: '',
+      type: 'password',
+      isValid: (value) => typeof value === 'string' && value.length > 0 && value.length <= 72,
+      attrs: { maxlength: 72, autocomplete: 'current-password' },
+      label: 'Contraseña actual',
+    },
     cancel: true,
     persistent: true,
-  }).onOk(async () => {
+  }).onOk(async (contrasenaActual) => {
     try {
-      await authStore.deleteAccount()
+      await authStore.deleteAccount(contrasenaActual)
       Notify.create({ type: 'positive', message: 'Tu cuenta fue eliminada.' })
       router.replace('/')
     } catch (error) {
@@ -122,8 +131,16 @@ function confirmDeleteAccount() {
       <h3 class="text-h6">Cambiar contraseña</h3>
       <q-form @submit.prevent="changePassword">
         <div class="form-grid">
-          <q-input v-model="password.actual" label="Contraseña actual" type="password" autocomplete="current-password" outlined dense required />
-          <q-input v-model="password.nueva" label="Nueva contraseña" type="password" autocomplete="new-password" outlined dense required minlength="10" maxlength="72" hint="Entre 10 y 72 caracteres, con al menos una letra y un número." />
+          <q-input v-model="password.actual" label="Contraseña actual" :type="showCurrentPassword ? 'text' : 'password'" autocomplete="current-password" outlined dense required maxlength="72">
+            <template #append>
+              <q-icon :name="showCurrentPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showCurrentPassword = !showCurrentPassword" />
+            </template>
+          </q-input>
+          <q-input v-model="password.nueva" label="Nueva contraseña" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" outlined dense required minlength="10" maxlength="72" hint="Entre 10 y 72 caracteres, con al menos una letra y un número.">
+            <template #append>
+              <q-icon :name="showNewPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showNewPassword = !showNewPassword" />
+            </template>
+          </q-input>
         </div>
         <div class="form-actions">
           <q-btn type="submit" color="primary" :loading="savingPassword" label="Actualizar contraseña" />

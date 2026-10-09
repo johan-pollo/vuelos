@@ -56,8 +56,8 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
-  async function deleteAccount() {
-    await api.delete('/auth/me')
+  async function deleteAccount(contrasenaActual) {
+    await api.delete('/auth/me', { data: { contrasena_actual: contrasenaActual } })
     clearSession()
   }
 

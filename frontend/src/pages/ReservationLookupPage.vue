@@ -27,6 +27,11 @@ async function searchReservation() {
 function formatCurrency(value) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
 }
+
+function paymentStatus(reservation) {
+  if (reservation.estado === 'CANCELADA' || reservation.pago?.estado_pago === 'CANCELADO') return 'Cancelado'
+  return reservation.pago?.estado_pago === 'COMPLETADO' ? 'Pagado' : 'Pendiente'
+}
 </script>
 
 <template>
@@ -41,7 +46,7 @@ function formatCurrency(value) {
       <p class="text-grey-7 q-mb-md">Ingresa el código de confirmación para consultar el estado y los boletos, sin mostrar datos personales.</p>
       <q-form @submit.prevent="searchReservation">
         <div class="form-grid">
-          <q-input v-model="code" label="Código de reserva" outlined dense required />
+          <q-input v-model="code" label="Código de reserva" outlined dense required minlength="32" maxlength="32" pattern="[A-Fa-f0-9]{32}" />
         </div>
         <div class="form-actions">
           <q-btn type="submit" color="primary" :loading="loading" label="Buscar" />
@@ -67,8 +72,7 @@ function formatCurrency(value) {
           </q-item>
         </q-list>
         <div class="summary-total">
-          <span>Total · Pago {{ result.pago?.estado_pago || 'PENDIENTE' }}</span>
-          <strong>{{ formatCurrency(result.monto_total) }}</strong>
+          <span>Total · {{ formatCurrency(result.monto_total) }} - Estado · {{ paymentStatus(result) }}</span>
         </div>
       </q-card>
     </div>

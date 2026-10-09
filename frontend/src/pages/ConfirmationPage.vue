@@ -15,6 +15,24 @@ const returnFlight = computed(() => flightStore.flights.find((flight) => flight.
 const canConfirmReservation = computed(() => !flightsLoading.value
   && Boolean(selectedFlight.value)
   && (!bookingStore.returnFlightId || Boolean(returnFlight.value)))
+const classFactors = { ECONOMICA: 1, EJECUTIVA: 1.5, PRIMERA: 2 }
+
+function seatDetails(flight, seatNumber) {
+  const seat = flight?.vehiculo?.asientos?.find((item) => item.numero_asiento === seatNumber)
+  const seatClass = seat?.clase_asiento || 'ECONOMICA'
+  return {
+    type: seat?.tipo_asiento || seat?.ubicacion || 'No disponible',
+    price: Math.round(Number(flight?.precio_base || 0) * (classFactors[seatClass] || 1)),
+  }
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(value || 0)
+}
 
 function formatDateTime(value) {
   if (!value) return '—'
@@ -101,25 +119,35 @@ async function createReservation() {
         </div>
 
         <section class="passenger-details-section">
-          <h3>Datos del pasajero · Ida</h3>
+          <div class="page-header compact-header">
+            <h3>Datos de pasajeros · Ida</h3>
+            <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
+          </div>
           <article v-for="(passenger, index) in bookingStore.passengers" :key="`passenger-${index}`" class="passenger-detail-card">
-            <h4>Pasajero {{ index + 1 }}</h4>
+            <h4>Pasajero {{ index + 1 }} · Asiento {{ bookingStore.selectedSeats[index] }}</h4>
             <div class="passenger-detail-grid">
               <div class="summary-item"><strong>Nombre</strong><br>{{ passenger.nombre }} {{ passenger.apellido }}</div>
               <div class="summary-item"><strong>Cédula</strong><br>{{ passenger.documento_identidad }}</div>
               <div v-if="passenger.telefono" class="summary-item"><strong>Teléfono</strong><br>{{ passenger.telefono }}</div>
+              <div class="summary-item"><strong>Tipo de asiento</strong><br>{{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).type }}</div>
+              <div class="summary-item"><strong>Valor por asiento</strong><br>{{ formatCurrency(seatDetails(selectedFlight, bookingStore.selectedSeats[index]).price) }}</div>
             </div>
           </article>
         </section>
 
         <section v-if="returnFlight" class="passenger-details-section">
-          <h3>Datos del pasajero · Regreso</h3>
+          <div class="page-header compact-header">
+            <h3>Datos de pasajeros · Regreso</h3>
+            <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
+          </div>
           <article v-for="(passenger, index) in bookingStore.returnPassengers" :key="`return-passenger-${index}`" class="passenger-detail-card">
-            <h4>Pasajero {{ index + 1 }}</h4>
+            <h4>Pasajero {{ index + 1 }} · Asiento {{ bookingStore.returnSeats[index] }}</h4>
             <div class="passenger-detail-grid">
               <div class="summary-item"><strong>Nombre</strong><br>{{ passenger.nombre }} {{ passenger.apellido }}</div>
               <div class="summary-item"><strong>Cédula</strong><br>{{ passenger.documento_identidad }}</div>
               <div v-if="passenger.telefono" class="summary-item"><strong>Teléfono</strong><br>{{ passenger.telefono }}</div>
+              <div class="summary-item"><strong>Tipo de asiento</strong><br>{{ seatDetails(returnFlight, bookingStore.returnSeats[index]).type }}</div>
+              <div class="summary-item"><strong>Valor por asiento</strong><br>{{ formatCurrency(seatDetails(returnFlight, bookingStore.returnSeats[index]).price) }}</div>
             </div>
           </article>
         </section>

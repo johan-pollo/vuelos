@@ -24,7 +24,6 @@ const loadingReservations = ref(false)
 const routeForm = reactive({ origen: '', destino: '', duracion_estimada_min: '' })
 const vehicleForm = reactive({
   placa_o_matricula: '',
-  tipo_vehiculo: 'AVION',
   ECONOMICA: '',
   EJECUTIVA: '',
   PRIMERA: '',
@@ -170,7 +169,6 @@ function clearVehicleForm() {
   editingVehicleId.value = ''
   Object.assign(vehicleForm, {
     placa_o_matricula: '',
-    tipo_vehiculo: 'AVION',
     ECONOMICA: '',
     EJECUTIVA: '',
     PRIMERA: '',
@@ -189,7 +187,6 @@ function editVehicle(vehicle) {
   editingVehicleId.value = vehicle._id
   Object.assign(vehicleForm, {
     placa_o_matricula: vehicle.placa_o_matricula,
-    tipo_vehiculo: vehicle.tipo_vehiculo,
     ECONOMICA: vehicle.asientos.filter((seat) => (seat.clase_asiento || 'ECONOMICA') === 'ECONOMICA').length || '',
     EJECUTIVA: vehicle.asientos.filter((seat) => seat.clase_asiento === 'EJECUTIVA').length || '',
     PRIMERA: vehicle.asientos.filter((seat) => seat.clase_asiento === 'PRIMERA').length || '',
@@ -230,7 +227,6 @@ async function saveVehicle() {
     const asientos = buildSeatMap(vehicleForm, vehicles.value.find((item) => item._id === editingVehicleId.value)?.asientos || [])
     const payload = {
       placa_o_matricula: vehicleForm.placa_o_matricula.trim().toUpperCase(),
-      tipo_vehiculo: vehicleForm.tipo_vehiculo,
       capacidad_asientos: asientos.length,
       asientos,
     }
@@ -311,7 +307,7 @@ function confirmDeleteCustomer(customer) {
 </script>
 
 <template>
-  <q-page class="page-shell">
+  <q-page class="page-shell admin-page-shell">
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
@@ -371,7 +367,7 @@ function confirmDeleteCustomer(customer) {
               </div>
               <div class="form-grid vehicle-identity-grid">
                 <q-input v-model="vehicleForm.placa_o_matricula" label="Placa o matrícula" outlined dense required minlength="4" maxlength="20" />
-                <q-select v-model="vehicleForm.tipo_vehiculo" :options="['AVION', 'BUS']" label="Tipo de vehículo" outlined dense />
+                <q-input model-value="Avión" label="Tipo de nave" outlined dense readonly />
               </div>
             </section>
 

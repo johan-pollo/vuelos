@@ -15,6 +15,7 @@ const AdminDashboardPage = () => import('../pages/AdminDashboardPage.vue')
 const AdminFlightsPage = () => import('../pages/AdminFlightsPage.vue')
 const AdminNewFlightPage = () => import('../pages/AdminNewFlightPage.vue')
 const AdminReservationsPage = () => import('../pages/AdminReservationsPage.vue')
+const AdminBookingPage = () => import('../pages/AdminBookingPage.vue')
 const AdminCatalogPage = () => import('../pages/AdminCatalogPage.vue')
 const AccountPage = () => import('../pages/AccountPage.vue')
 const MyReservationsPage = () => import('../pages/MyReservationsPage.vue')
@@ -29,7 +30,7 @@ const router = createRouter({
     { path: '/asientos/:id', name: 'seat-selection', component: SeatSelectionPage, props: true, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/pasajero', name: 'passenger', component: PassengerPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/resumen', name: 'summary', component: SummaryPage, meta: { requiresAuth: true, requiresClient: true } },
-    { path: '/pago', name: 'payment', component: PaymentPage, meta: { requiresAuth: true, requiresClient: true } },
+    { path: '/pago', name: 'payment', component: PaymentPage, meta: { requiresAuth: true } },
     { path: '/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/ticket', name: 'ticket', component: TicketPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/consultar-reserva', name: 'reservation-lookup', component: ReservationLookupPage },
@@ -38,6 +39,7 @@ const router = createRouter({
     { path: '/admin/vuelos', name: 'admin-flights', component: AdminFlightsPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/vuelos/nuevo', name: 'admin-new-flight', component: AdminNewFlightPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/reservas', name: 'admin-reservas', component: AdminReservationsPage, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/reservar', name: 'admin-booking', component: AdminBookingPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/catalogos', name: 'admin-catalogs', component: AdminCatalogPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/cuenta', name: 'account', component: AccountPage, meta: { requiresAuth: true } },
     { path: '/mis-reservas', name: 'my-reservations', component: MyReservationsPage, meta: { requiresAuth: true, requiresClient: true } },

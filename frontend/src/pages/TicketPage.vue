@@ -20,6 +20,11 @@ function formatDateTime(value) {
     : '—'
 }
 
+function paymentStatus(reservation) {
+  if (reservation?.estado === 'CANCELADA' || reservation?.pago?.estado_pago === 'CANCELADO') return 'Cancelado'
+  return reservation?.pago?.estado_pago === 'COMPLETADO' ? 'Pagado' : 'Pendiente'
+}
+
 function passengerSeatClass(flight, seatNumber) {
   return flight?.vehiculo?.asientos?.find((seat) => seat.numero_asiento === seatNumber)?.clase_asiento || 'ECONOMICA'
 }
@@ -55,7 +60,7 @@ function passengerSeatClass(flight, seatNumber) {
           <div class="summary-item"><strong>Fecha y hora de llegada</strong><br>{{ formatDateTime(selectedFlight?.fecha_hora_llegada) }}</div>
           <div class="summary-item"><strong>Duración</strong><br>{{ formatDuration(selectedFlight?.ruta?.duracion_estimada_min) }}</div>
           <div class="summary-item"><strong>Vehículo</strong><br>{{ selectedFlight?.vehiculo?.placa_o_matricula || '—' }}</div>
-          <div class="summary-item"><strong>Estado del pago</strong><br>{{ bookingStore.reservation?.pago?.estado_pago || 'PENDIENTE' }}</div>
+          <div class="summary-item"><strong>Estado del pago</strong><br>{{ paymentStatus(bookingStore.reservation) }}</div>
           <div class="summary-item"><strong>Total</strong><br>{{ formatCurrency(bookingStore.reservation?.monto_total) }}</div>
           <div v-for="(passenger, index) in bookingStore.passengers" :key="`ticket-passenger-${index}`" class="summary-item ticket-passenger">
             <strong>Pasajero {{ index + 1 }}</strong>
