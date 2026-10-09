@@ -7,6 +7,7 @@ const FlightDetailPage = () => import('../pages/FlightDetailPage.vue')
 const SeatSelectionPage = () => import('../pages/SeatSelectionPage.vue')
 const PassengerPage = () => import('../pages/PassengerPage.vue')
 const SummaryPage = () => import('../pages/SummaryPage.vue')
+const PaymentPage = () => import('../pages/PaymentPage.vue')
 const ConfirmationPage = () => import('../pages/ConfirmationPage.vue')
 const TicketPage = () => import('../pages/TicketPage.vue')
 const ReservationLookupPage = () => import('../pages/ReservationLookupPage.vue')
@@ -28,7 +29,7 @@ const router = createRouter({
     { path: '/asientos/:id', name: 'seat-selection', component: SeatSelectionPage, props: true, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/pasajero', name: 'passenger', component: PassengerPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/resumen', name: 'summary', component: SummaryPage, meta: { requiresAuth: true, requiresClient: true } },
-    { path: '/pago', redirect: { name: 'summary' } },
+    { path: '/pago', name: 'payment', component: PaymentPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/ticket', name: 'ticket', component: TicketPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/consultar-reserva', name: 'reservation-lookup', component: ReservationLookupPage },

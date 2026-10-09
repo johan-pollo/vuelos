@@ -44,6 +44,22 @@ export const useBookingStore = defineStore('booking', () => {
     return data
   }
 
+  async function payReservation(cardNumber) {
+    const reservationId = reservation.value?._id
+    if (!reservationId) {
+      throw new Error('No hay una reserva pendiente para pagar.')
+    }
+
+    const { data } = await api.post(`/reservas/${reservationId}/pagar`, {
+      metodo_pago: 'TARJETA',
+      numero_tarjeta: cardNumber,
+    })
+
+    reservation.value = { ...reservation.value, ...data }
+    reservationCode.value = data.codigo_reserva || reservationCode.value
+    return data
+  }
+
   function resetBooking() {
     selectedFlightId.value = ''
     selectedSeats.value = []
@@ -67,6 +83,7 @@ export const useBookingStore = defineStore('booking', () => {
     reservationCode,
     confirmMessage,
     confirmReservation,
+    payReservation,
     resetBooking,
   }
 }, {

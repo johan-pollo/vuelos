@@ -44,11 +44,17 @@ onMounted(async () => {
 })
 
 async function createReservation() {
+  if (bookingStore.reservation?._id
+    && ['PENDIENTE', 'RECHAZADO'].includes(bookingStore.reservation.pago?.estado_pago)) {
+    router.push({ name: 'payment' })
+    return
+  }
+
   loading.value = true
   try {
     await bookingStore.confirmReservation()
-    Notify.create({ type: 'positive', message: 'Reserva confirmada correctamente.' })
-    router.push({ name: 'ticket' })
+    Notify.create({ type: 'positive', message: 'Reserva creada. Continúa al pago para confirmar la compra.' })
+    router.push({ name: 'payment' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No se pudo confirmar la reserva.' })
   } finally {
@@ -63,7 +69,7 @@ async function createReservation() {
       <div class="page-header compact-header">
         <div>
           <p class="eyebrow">Confirmación</p>
-          <h2>Listo para reservar</h2>
+          <h2>Confirma los datos de tu reserva</h2>
         </div>
       </div>
 
@@ -77,8 +83,8 @@ async function createReservation() {
       </q-banner>
 
       <template v-else>
-        <q-banner class="bg-positive text-white q-mb-md">
-          Al confirmar la reserva, recibirás un tiquete con los datos de tus vuelos y pasajeros. El pago quedará pendiente en la plataforma.
+        <q-banner class="bg-blue-1 text-blue-10 q-mb-md">
+          Al continuar, crearemos tu reserva pendiente y podrás pagar con tarjeta en la siguiente pantalla.
         </q-banner>
 
         <div class="summary-box">
@@ -121,7 +127,7 @@ async function createReservation() {
 
       <div class="form-actions">
         <q-btn flat label="Volver" :to="{ name: 'summary' }" class="back-navigation" />
-        <q-btn color="primary" :loading="loading" :disable="!canConfirmReservation" label="Confirmar reserva" @click="createReservation" />
+        <q-btn color="primary" :loading="loading" :disable="!canConfirmReservation" label="Continuar al pago" @click="createReservation" />
       </div>
     </div>
   </q-page>

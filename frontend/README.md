@@ -74,7 +74,7 @@ La autenticación guarda el token JWT y el usuario en el almacenamiento local de
 - Selección de hasta diez asientos por trayecto; se muestran los asientos ocupados, disponibles y seleccionados.
 - Reserva opcional de ida y regreso. El vuelo de regreso se limita a la ruta inversa y a una salida posterior a la llegada de ida.
 - Registro de nombre, apellido y documento por cada asiento. El backend calcula el precio según la clase tarifaria de cada asiento.
-- Confirmación, visualización del código y consulta pública de una reserva por código, sin revelar información personal.
+- Confirmación de la reserva, pago simulado con tarjeta, visualización del código y consulta pública de una reserva por código, sin revelar información personal.
 - Página **Mis reservas** con datos y boletos, edición de pasajeros y cancelación sujeta a la regla de tres horas del backend.
 - Página de cuenta para editar perfil y cambiar contraseña. La cuenta cliente se puede eliminar solo cuando la API confirma que no hay reservas activas ni pagos pendientes.
 
@@ -102,6 +102,7 @@ Las solicitudes usan el prefijo `/api`, definido por `VITE_API_URL`.
 | Administrar clientes | `GET /usuarios`, `DELETE /usuarios/:id` |
 | Crear o eliminar viaje | `POST /viajes`, `DELETE /viajes/:id` |
 | Crear reserva de ida o ida/regreso | `POST /reservas` |
+| Simular el pago de una reserva con tarjeta | `POST /reservas/:id/pagar` |
 | Consultar reservas | `GET /reservas`, `GET /reservas/codigo/:codigo` |
 | Guardar pasajeros y cancelar reserva | `PATCH /reservas/:id/pasajeros`, `POST /reservas/:id/cancelar` |
 
@@ -109,7 +110,9 @@ La lista anterior documenta las integraciones de interfaz para las operaciones q
 
 ## Pago, credenciales y límites de integración
 
-- El backend actual **no integra una pasarela de pago ni expone un endpoint para cobrar**. El frontend no solicita ni procesa datos de tarjetas; las reservas quedan con pago `PENDIENTE`.
+- El pago disponible es una **simulación**: después de crear una reserva, el frontend envía a `POST /reservas/:id/pagar` el método `TARJETA` y un número de 16 dígitos. El backend marca la reserva como confirmada y devuelve el estado y la referencia del pago; no se realiza un cobro real.
+- El formulario limita el número de tarjeta a 16 dígitos, el CVC a 3 y la fecha a `MM/AA`, validando que no esté vencida. El CVC y la fecha solo se validan en el navegador: no se almacenan y no se envían al API.
+- MongoDB se conecta exclusivamente desde el backend con `MONGODB_URI` y `MONGODB_DB_NAME` de `backend/.env`. El frontend no debe leer ese archivo ni conectarse directamente a MongoDB; consume la API mediante `VITE_API_URL` (por defecto `http://localhost:3000/api`).
 - El login devuelve el mismo error cuando el correo no existe o la contraseña es incorrecta. La interfaz ofrece pasar al registro cuando falla el login, pero la API no permite asegurar cuál de las dos causas ocurrió.
 - En la implementación actual, `GET /api/viajes` sin sesión responde `500` porque el manejador del backend lee el rol de una sesión opcional que no existe. Por eso las pantallas de vuelos piden iniciar sesión; los visitantes no pueden consultar vuelos anónimamente hasta corregir ese error en el backend.
 - No hay cuentas predeterminadas del frontend. El usuario ADMIN depende de `ADMIN_EMAIL` y `ADMIN_PASSWORD` configurados en el entorno privado del backend y se crea/actualiza con `npm run admin:create`. Las cuentas cliente se crean en el formulario de registro. No se deben publicar contraseñas reales en este README.

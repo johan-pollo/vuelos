@@ -1492,6 +1492,68 @@ p {
   font-size: 1.2rem;
 }
 
+.payment-total span {
+  display: grid;
+  gap: 4px;
+}
+
+.payment-total small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.payment-card {
+  width: min(100%, 620px);
+}
+
+.payment-card-preview {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: min(100%, 360px);
+  min-height: 190px;
+  margin: 0 auto 24px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #201638, #49336f 58%, #76529d);
+  box-shadow: 0 16px 30px rgba(32, 22, 56, 0.2);
+  color: #fff;
+}
+
+.payment-card-preview-top,
+.payment-card-preview-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.payment-card-preview-top span,
+.payment-card-preview-bottom span {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+
+.payment-chip {
+  opacity: 0.9;
+}
+
+.payment-card-number {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  letter-spacing: 0.08em;
+}
+
+.payment-form {
+  margin-top: 20px;
+}
+
+.payment-privacy-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
 .payment-method-options {
   display: grid;
   gap: 8px;
