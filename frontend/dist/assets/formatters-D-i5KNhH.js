@@ -1,0 +1,1 @@
+function e(e){let t=Number(e);if(!Number.isFinite(t)||t<0)return`Sin dato`;let n=Math.floor(t/60),r=Math.floor(t%60),i=[];return n&&i.push(`${n} ${n===1?`hora`:`horas`}`),r&&i.push(`${r} min`),i.join(` y `)||`0 min`}export{e as t};
