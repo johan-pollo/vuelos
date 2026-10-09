@@ -611,6 +611,9 @@ p {
 }
 
 .destination-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
   min-height: 230px;
   padding: 0;
@@ -628,6 +631,7 @@ p {
 
 .destination-photo-wrap {
   height: 190px;
+  flex-shrink: 0;
 }
 
 .destination-photo,
@@ -671,12 +675,15 @@ p {
 
 .destination-card-content .price-row {
   margin-top: auto;
-}
-
-.destination-card-content .price-row {
+  margin-bottom: 12px;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
+}
+
+.destination-card-content .q-btn {
+  width: 100%;
+  margin-top: 0;
 }
 
 .destination-card-content .price-row span {
@@ -804,25 +811,32 @@ p {
 .destination-card h3 {
   color: var(--aero-navy);
   font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.destination-card-content h3 {
+  margin: 4px 0 6px;
+  font-size: 1.18rem;
+  line-height: 1.2;
 }
 
 .feature-card p,
 .destination-card p {
   color: var(--muted);
-  line-height: 1.7;
+  line-height: 1.5;
 }
 
 .route-pill {
   display: inline-flex;
   align-items: center;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: var(--aero-red-soft);
   color: var(--aero-red);
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .price-row {
@@ -1199,6 +1213,8 @@ p {
 .flight-card {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
   min-width: 0;
   padding: 18px;
   border: 1px solid var(--aero-line);
@@ -1295,10 +1311,17 @@ p {
 
 .flight-actions {
   display: flex;
+  flex-direction: column;
   justify-content: flex-end;
   gap: 8px;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 14px;
+  width: 100%;
+}
+
+.flight-actions .q-btn {
+  width: 100%;
+  margin-top: auto;
 }
 
 .warning-box {
@@ -2281,4 +2304,62 @@ p {
     padding: 16px;
   }
 
+}
+
+.ticket-values-breakdown {
+  border: 1px solid var(--aero-line);
+  border-radius: 18px;
+  padding: 18px;
+  background: var(--aero-surface);
+}
+
+.ticket-leg-breakdown {
+  background: #ffffff;
+  border: 1px solid var(--aero-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.leg-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.92rem;
+  color: var(--aero-navy);
+}
+
+.ticket-value-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px dashed var(--aero-line);
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.ticket-subtotal-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  margin-top: 6px;
+  border-top: 1px solid var(--aero-line);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--aero-navy);
+}
+
+.ticket-balance-total {
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--aero-red-soft);
+  border: 1px solid rgba(215, 38, 56, 0.25);
+}
+
+.balance-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }

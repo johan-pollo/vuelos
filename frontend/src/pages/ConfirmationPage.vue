@@ -107,12 +107,12 @@ async function createReservation() {
 
         <div class="summary-box">
           <div class="summary-item"><strong>Vuelo de ida</strong><br>{{ selectedFlight.ruta?.origen }} → {{ selectedFlight.ruta?.destino }}</div>
-          <div class="summary-item"><strong>Salida</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_salida) }}</div>
-          <div class="summary-item"><strong>Llegada</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_llegada) }}</div>
+          <div class="summary-item"><strong>Salida de ida</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_salida) }}</div>
+          <div class="summary-item"><strong>Llegada de ida</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_llegada) }}</div>
           <div class="summary-item"><strong>Asientos de ida</strong><br>{{ bookingStore.selectedSeats.join(', ') || 'Sin selección' }}</div>
           <template v-if="returnFlight">
             <div class="summary-item"><strong>Vuelo de regreso</strong><br>{{ returnFlight.ruta?.origen }} → {{ returnFlight.ruta?.destino }}</div>
-            <div class="summary-item"><strong>Salida del regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_salida) }}</div>
+            <div class="summary-item"><strong>Fecha de regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_salida) }}</div>
             <div class="summary-item"><strong>Llegada del regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_llegada) }}</div>
             <div class="summary-item"><strong>Asientos de regreso</strong><br>{{ bookingStore.returnSeats.join(', ') || 'Sin selección' }}</div>
           </template>

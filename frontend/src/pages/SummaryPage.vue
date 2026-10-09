@@ -26,6 +26,11 @@ const total = computed(() => {
 function formatCurrency(value) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
 }
+
+function formatDateTime(value) {
+  if (!value) return 'Sin fecha'
+  return new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+}
 </script>
 
 <template>
@@ -39,12 +44,13 @@ function formatCurrency(value) {
       </div>
 
       <div class="summary-box">
-        <div class="summary-item"><strong>Vuelo</strong><br>{{ selectedFlight?.ruta?.origen }} → {{ selectedFlight?.ruta?.destino }}</div>
-        <div class="summary-item"><strong>Asientos</strong><br>{{ bookingStore.selectedSeats.join(', ') || 'Sin selección' }}</div>
-        <div class="summary-item"><strong>Pasajeros</strong><br>{{ bookingStore.passengers.map((item) => `${item.nombre} ${item.apellido}`).join(', ') }}</div>
-        <div class="summary-item"><strong>Fecha</strong><br>{{ selectedFlight ? new Date(selectedFlight.fecha_hora_salida).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : 'Sin fecha' }}</div>
+        <div class="summary-item"><strong>Vuelo de ida</strong><br>{{ selectedFlight?.ruta?.origen }} → {{ selectedFlight?.ruta?.destino }}</div>
+        <div class="summary-item"><strong>Fecha de salida</strong><br>{{ selectedFlight ? formatDateTime(selectedFlight.fecha_hora_salida) : 'Sin fecha' }}</div>
+        <div class="summary-item"><strong>Asientos de ida</strong><br>{{ bookingStore.selectedSeats.join(', ') || 'Sin selección' }}</div>
+        <div class="summary-item"><strong>Pasajeros ida</strong><br>{{ bookingStore.passengers.map((item) => `${item.nombre} ${item.apellido}`).join(', ') }}</div>
         <template v-if="returnFlight">
-          <div class="summary-item"><strong>Regreso</strong><br>{{ returnFlight.ruta?.origen }} → {{ returnFlight.ruta?.destino }}</div>
+          <div class="summary-item"><strong>Vuelo de regreso</strong><br>{{ returnFlight.ruta?.origen }} → {{ returnFlight.ruta?.destino }}</div>
+          <div class="summary-item"><strong>Fecha de regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_salida) }}</div>
           <div class="summary-item"><strong>Asientos de regreso</strong><br>{{ bookingStore.returnSeats.join(', ') }}</div>
           <div class="summary-item"><strong>Pasajeros regreso</strong><br>{{ bookingStore.returnPassengers.map((item) => `${item.nombre} ${item.apellido}`).join(', ') }}</div>
         </template>

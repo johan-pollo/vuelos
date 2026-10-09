@@ -52,9 +52,30 @@ const returnFlights = computed(() => flightStore.flights.filter((item) =>
 const returnFlightOptions = computed(() => {
   const returnDate = route.query.fechaRegreso?.toString() || ''
   const passengers = Math.max(1, Number.parseInt(route.query.pasajeros?.toString() || '1', 10) || 1)
-  return returnFlights.value.filter((item) => !returnDate
-    || localDate(item.fecha_hora_salida) === returnDate)
-    .filter((item) => Number(item.asientos_disponibles || 0) >= passengers)
+  const available = returnFlights.value.filter((item) => Number(item.asientos_disponibles || 0) >= passengers)
+
+  if (returnDate) {
+    const matchingDate = available.filter((item) => localDate(item.fecha_hora_salida) === returnDate)
+    if (matchingDate.length > 0) return matchingDate
+  }
+
+  return available
+})
+
+const selectReturnOptions = computed(() => {
+  if (!returnFlightOptions.value.length) {
+    return [
+      {
+        label: 'No hay vuelos disponibles de regreso para este viaje',
+        value: '',
+        disable: true,
+      },
+    ]
+  }
+  return returnFlightOptions.value.map((item) => ({
+    label: `${formatDateTime(item.fecha_hora_salida)} · ${formatCurrency(item.precio_base)}`,
+    value: item._id,
+  }))
 })
 
 watch(() => bookingStore.returnFlightId, () => {
@@ -145,26 +166,21 @@ function continueBooking() {
         <div class="detail-item"><small>Precio base</small><strong>{{ formatCurrency(flight.precio_base) }}</strong></div>
       </div>
 
-      <div v-if="returnFlightOptions.length" class="class-block">
+      <div class="class-block q-mt-md">
         <p class="eyebrow">{{ route.query.tipoViaje === 'IDA_VUELTA' ? 'Viaje de regreso' : 'Viaje de regreso (opcional)' }}</p>
         <q-select
           v-model="bookingStore.returnFlightId"
-          :options="returnFlightOptions.map((item) => ({
-            label: `${formatDateTime(item.fecha_hora_salida)} · ${formatCurrency(item.precio_base)}`,
-            value: item._id,
-          }))"
+          :options="selectReturnOptions"
           label="Selecciona un vuelo de regreso"
-          :clearable="route.query.tipoViaje !== 'IDA_VUELTA'"
+          :clearable="returnFlightOptions.length > 0 && route.query.tipoViaje !== 'IDA_VUELTA'"
           emit-value
           map-options
           outlined
           dense
         />
-        <p class="text-caption text-grey-7">Solo se muestran viajes de regreso disponibles después de la llegada.</p>
+        <p v-if="returnFlightOptions.length > 0" class="text-caption text-grey-7 q-mt-xs">Solo se muestran viajes de regreso disponibles después de la llegada.</p>
+        <p v-else class="text-caption text-grey-7 q-mt-xs">No hay vuelos de regreso disponibles en este momento para la ruta seleccionada.</p>
       </div>
-      <q-banner v-else-if="route.query.tipoViaje === 'IDA_VUELTA'" rounded class="bg-orange-1 text-orange-10 q-mt-md">
-        No encontramos un vuelo de regreso disponible para la fecha seleccionada. Puedes volver a vuelos y elegir otra fecha.
-      </q-banner>
 
       <q-banner v-if="!authStore.isAdmin" rounded class="price-info-banner bg-grey-1 text-primary">
         El precio final se calcula según la clase de asiento que elijas.

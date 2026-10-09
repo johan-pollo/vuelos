@@ -183,6 +183,11 @@ function restoreEmptySeatCount(seatClass) {
   if (vehicleForm[seatClass] === null || vehicleForm[seatClass] === '') vehicleForm[seatClass] = ''
 }
 
+function getSeatsByClass(vehicle, seatClass) {
+  if (!vehicle || !Array.isArray(vehicle.asientos)) return 0
+  return vehicle.asientos.filter((seat) => (seat.clase_asiento || 'ECONOMICA') === seatClass).length
+}
+
 function editVehicle(vehicle) {
   editingVehicleId.value = vehicle._id
   Object.assign(vehicleForm, {
@@ -394,8 +399,21 @@ function confirmDeleteCustomer(customer) {
           <q-list bordered separator class="q-mt-md">
             <q-item v-for="vehicle in vehicles" :key="vehicle._id">
               <q-item-section>
-                <q-item-label>{{ vehicle.placa_o_matricula }} · {{ vehicle.tipo_vehiculo }}</q-item-label>
-                <q-item-label caption>{{ vehicle.capacidad_asientos }} asientos · {{ vehicle.viajes_programados?.length || 0 }} viajes próximos</q-item-label>
+                <q-item-label class="text-weight-bold text-subtitle1">{{ vehicle.placa_o_matricula }} · {{ vehicle.tipo_vehiculo === 'AVION' ? 'Avión' : vehicle.tipo_vehiculo }}</q-item-label>
+                <q-item-label caption class="q-mt-xs text-weight-medium text-grey-9">
+                  <strong>Capacidad total:</strong> {{ vehicle.capacidad_asientos }} asientos · {{ vehicle.viajes_programados?.length || 0 }} viajes próximos
+                </q-item-label>
+                <div class="vehicle-class-breakdown q-mt-xs row items-center q-gutter-xs">
+                  <q-chip dense size="sm" color="amber-2" text-color="amber-10" icon="star">
+                    Primera Clase: {{ getSeatsByClass(vehicle, 'PRIMERA') }}
+                  </q-chip>
+                  <q-chip dense size="sm" color="blue-2" text-color="blue-10" icon="business_center">
+                    Clase Ejecutiva: {{ getSeatsByClass(vehicle, 'EJECUTIVA') }}
+                  </q-chip>
+                  <q-chip dense size="sm" color="grey-3" text-color="grey-9" icon="airline_seat_recline_normal">
+                    Clase Económica: {{ getSeatsByClass(vehicle, 'ECONOMICA') }}
+                  </q-chip>
+                </div>
               </q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
