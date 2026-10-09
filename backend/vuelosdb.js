@@ -40,7 +40,7 @@ db.createCollection("vehiculos", {
          required: ["placa_o_matricula", "tipo_vehiculo", "capacidad_asientos"],
          properties: {
             placa_o_matricula: { bsonType: "string" },
-            tipo_vehiculo: { enum: ["BUS", "AVION"] },
+            tipo_vehiculo: { enum: ["AVION"] },
             capacidad_asientos: { bsonType: "int" },
             asientos: {
                bsonType: "array",

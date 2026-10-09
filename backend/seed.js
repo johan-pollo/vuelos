@@ -27,7 +27,7 @@ async function crearDatosDemo() {
     { placa_o_matricula: 'DEMO-001' },
     { $setOnInsert: {
       placa_o_matricula: 'DEMO-001',
-      tipo_vehiculo: 'BUS',
+      tipo_vehiculo: 'AVION',
       capacidad_asientos: asientos.length,
       asientos,
     } },

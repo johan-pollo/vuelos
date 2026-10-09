@@ -39,7 +39,10 @@ async function autenticar(req, res, next) {
 
 async function autenticarOpcional(req, res, next) {
   const authorization = req.headers.authorization;
-  if (!authorization) return next();
+  if (!authorization) {
+    req.usuario = null;
+    return next();
+  }
 
   const [tipo, token] = authorization.split(' ');
   if (tipo !== 'Bearer' || !token) {

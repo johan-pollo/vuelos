@@ -157,7 +157,8 @@ const vehiculoSchema = new Schema({
   tipo_vehiculo: {
     type: String,
     required: [true, 'El tipo de vehículo es obligatorio.'],
-    enum: { values: ['BUS', 'AVION'], message: 'El tipo de vehículo debe ser BUS o AVION.' },
+    enum: { values: ['AVION'], message: 'La plataforma solo admite aviones.' },
+    default: 'AVION',
   },
   capacidad_asientos: {
     type: Number,
@@ -231,6 +232,8 @@ const pagoSchema = new Schema({
     enum: { values: ['PENDIENTE', 'COMPLETADO', 'RECHAZADO', 'CANCELADO'], message: 'Estado de pago no válido.' },
     default: 'PENDIENTE',
   },
+  referencia_transaccion: { type: String, trim: true, maxlength: [40, 'La referencia de transacción no es válida.'] },
+  fecha_pago: { type: Date },
 }, { _id: false, strict: 'throw' });
 
 const pasajeroSchema = new Schema({

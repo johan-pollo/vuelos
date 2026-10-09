@@ -132,6 +132,13 @@ function validarObjectId(id, nombre) {
   }
 }
 
+function obtenerEstadoViaje(viaje, ahora = new Date()) {
+  if (viaje.estado === 'CANCELADO') return 'CANCELADO';
+  if (ahora < viaje.fecha_hora_salida) return 'PROGRAMADO';
+  if (ahora < viaje.fecha_hora_llegada) return 'EN_CURSO';
+  return 'FINALIZADO';
+}
+
 function exigirBaseDeDatos(req, res, next) {
   if (mongoose.connection.readyState !== 1 || !baseLista) {
     return res.status(503).json({ error: 'La base de datos no está conectada.' });
@@ -212,6 +219,7 @@ app.post('/api/auth/registro', exigirBaseDeDatos, async (req, res) => {
       rol: 'CLIENTE',
       cliente: cliente._id,
     });
+    await usuario.populate('cliente');
     return res.status(201).json({ token: crearToken(usuario), usuario: presentarUsuario(usuario) });
   } catch (error) {
     // Si la cuenta no pudo crearse, no dejamos un perfil cliente huérfano.
@@ -224,11 +232,24 @@ app.post('/api/auth/login', exigirBaseDeDatos, async (req, res) => {
   validarCamposPermitidos(req.body, ['email', 'password']);
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
+  if (email.length > 100 || Buffer.byteLength(password, 'utf8') > 72) {
+    return res.status(400).json({ error: 'El correo o la contraseña superan el límite permitido.' });
+  }
   const usuario = await Usuario.findOne({ email }).select('+password_hash');
-  if (!usuario || !(await bcrypt.compare(password, usuario.password_hash))) {
-    return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
+  if (!usuario) {
+    return res.status(404).json({
+      code: 'ACCOUNT_NOT_FOUND',
+      error: 'No encontramos una cuenta con ese correo. Puedes registrarte.',
+    });
+  }
+  if (!(await bcrypt.compare(password, usuario.password_hash))) {
+    return res.status(401).json({
+      code: 'INVALID_PASSWORD',
+      error: 'La contraseña es incorrecta.',
+    });
   }
 
+  await usuario.populate('cliente');
   res.json({ token: crearToken(usuario), usuario: presentarUsuario(usuario) });
 });
 
@@ -301,6 +322,18 @@ app.patch('/api/auth/me/password', exigirBaseDeDatos, autenticar, async (req, re
 });
 
 app.delete('/api/auth/me', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), async (req, res) => {
+  validarCamposPermitidos(req.body, ['contrasena_actual']);
+  const contrasenaActual = typeof req.body?.contrasena_actual === 'string'
+    ? req.body.contrasena_actual
+    : '';
+  if (!contrasenaActual || Buffer.byteLength(contrasenaActual, 'utf8') > 72) {
+    return res.status(400).json({ error: 'Indica tu contraseña actual para eliminar la cuenta.' });
+  }
+  const usuario = await Usuario.findById(req.usuario.id).select('+password_hash');
+  if (!usuario || !(await bcrypt.compare(contrasenaActual, usuario.password_hash))) {
+    return res.status(401).json({ error: 'La contraseña actual es incorrecta.' });
+  }
+
   const reservasActivas = await Reserva.exists({
     cliente: req.usuario.clienteId,
     estado: { $ne: 'CANCELADA' },
@@ -322,11 +355,13 @@ app.delete('/api/auth/me', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), 
 });
 
 app.get('/api/viajes', exigirBaseDeDatos, autenticarOpcional, async (req, res) => {
-  const filtro = req.usuario.rol === 'ADMIN'
+  const esAdmin = req.usuario?.rol === 'ADMIN';
+  const ahora = new Date();
+  const filtro = esAdmin
     ? {}
-    : { estado: 'PROGRAMADO', fecha_hora_salida: { $gte: new Date() } };
+    : { estado: { $ne: 'CANCELADO' }, fecha_hora_salida: { $gte: ahora } };
   const viajes = await Viaje.find(filtro)
-    .sort({ fecha_hora_salida: 1 })
+    .sort(esAdmin ? { createdAt: -1 } : { fecha_hora_salida: 1 })
     .populate('ruta')
     .populate('vehiculo');
 
@@ -341,6 +376,7 @@ app.get('/api/viajes', exigirBaseDeDatos, autenticarOpcional, async (req, res) =
 
   res.json(viajes.map(viaje => ({
     ...viaje.toJSON(),
+    estado: obtenerEstadoViaje(viaje, ahora),
     asientos_ocupados: ocupacionPorViaje.get(viaje._id.toString()) || 0,
     asientos_disponibles:
       viaje.vehiculo.capacidad_asientos -
@@ -398,17 +434,28 @@ app.put('/api/rutas/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), asy
   res.json(ruta);
 });
 
+app.delete('/api/rutas/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'La ruta');
+  const ruta = await Ruta.findById(req.params.id);
+  if (!ruta) return res.status(404).json({ error: 'La ruta no existe.' });
+  if (await Viaje.exists({ ruta: ruta._id })) {
+    return res.status(409).json({ error: 'No puedes eliminar una ruta que tenga viajes registrados.' });
+  }
+  await ruta.deleteOne();
+  res.status(204).end();
+});
+
 app.post('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
-  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
-  const vehiculo = await Vehiculo.create(req.body);
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'capacidad_asientos', 'asientos']);
+  const vehiculo = await Vehiculo.create({ ...req.body, tipo_vehiculo: 'AVION' });
   res.status(201).json(vehiculo);
 });
 
 app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
   validarObjectId(req.params.id, 'La nave');
-  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
-  if (!['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos'].every(campo => campo in req.body)) {
-    return res.status(400).json({ error: 'Envía matrícula, tipo, capacidad y mapa completo de asientos.' });
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'capacidad_asientos', 'asientos']);
+  if (!['placa_o_matricula', 'capacidad_asientos', 'asientos'].every(campo => campo in req.body)) {
+    return res.status(400).json({ error: 'Envía matrícula, capacidad y mapa completo de asientos.' });
   }
   const vehiculoActual = await Vehiculo.findById(req.params.id);
   if (!vehiculoActual) return res.status(404).json({ error: 'La nave no existe.' });
@@ -427,11 +474,25 @@ app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'),
     return res.status(409).json({ error: 'No puedes quitar ni cambiar la clase de asientos que ya tienen reservas.' });
   }
 
-  const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, req.body, {
+  const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, {
+    ...req.body,
+    tipo_vehiculo: 'AVION',
+  }, {
     new: true,
     runValidators: true,
   });
   res.json(vehiculo);
+});
+
+app.delete('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'La nave');
+  const vehiculo = await Vehiculo.findById(req.params.id);
+  if (!vehiculo) return res.status(404).json({ error: 'La nave no existe.' });
+  if (await Viaje.exists({ vehiculo: vehiculo._id })) {
+    return res.status(409).json({ error: 'No puedes eliminar una nave que tenga viajes registrados.' });
+  }
+  await vehiculo.deleteOne();
+  res.status(204).end();
 });
 
 app.get('/api/usuarios', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
@@ -467,7 +528,7 @@ app.delete('/api/usuarios/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'
 
 app.post('/api/viajes', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
   validarCamposPermitidos(req.body, [
-    'ruta', 'vehiculo', 'fecha_hora_salida', 'fecha_hora_llegada', 'precio_base', 'estado',
+    'ruta', 'vehiculo', 'fecha_hora_salida', 'fecha_hora_llegada', 'precio_base',
   ]);
   validarObjectId(req.body.ruta, 'La ruta');
   validarObjectId(req.body.vehiculo, 'El vehículo');
@@ -497,8 +558,29 @@ app.post('/api/viajes', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async
     });
   }
 
-  const viaje = await Viaje.create({ ...req.body, fecha_hora_salida: salida, fecha_hora_llegada: llegada });
+  const viaje = await Viaje.create({
+    ...req.body,
+    fecha_hora_salida: salida,
+    fecha_hora_llegada: llegada,
+    estado: 'PROGRAMADO',
+  });
   res.status(201).json(viaje);
+});
+
+app.patch('/api/viajes/:id/cancelar', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
+  validarObjectId(req.params.id, 'El viaje');
+  validarCamposPermitidos(req.body, []);
+  const viaje = await Viaje.findById(req.params.id);
+  if (!viaje) return res.status(404).json({ error: 'El viaje no existe.' });
+  if (viaje.fecha_hora_salida <= new Date()) {
+    return res.status(409).json({ error: 'Solo puedes cancelar un vuelo antes de su hora de salida.' });
+  }
+  if (viaje.estado === 'CANCELADO') {
+    return res.status(409).json({ error: 'El vuelo ya está cancelado.' });
+  }
+  viaje.estado = 'CANCELADO';
+  await viaje.save();
+  res.json({ ...viaje.toJSON(), estado: 'CANCELADO' });
 });
 
 app.delete('/api/viajes/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
@@ -542,9 +624,18 @@ app.get('/api/viajes/:id/asientos', exigirBaseDeDatos, autenticar, async (req, r
   });
 });
 
-app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), async (req, res) => {
-  validarCamposPermitidos(req.body, ['viaje', 'asientos', 'pasajeros', 'regreso']);
+app.post('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
+  const esAdmin = req.usuario.rol === 'ADMIN';
+  if (!esAdmin && req.usuario.rol !== 'CLIENTE') {
+    return res.status(403).json({ error: 'No tienes permiso para crear reservas.' });
+  }
+  validarCamposPermitidos(req.body, [
+    'viaje', 'asientos', 'pasajeros', 'regreso',
+    ...(esAdmin ? ['cliente'] : []),
+  ]);
+  const clienteId = esAdmin ? req.body.cliente : req.usuario.clienteId;
   const { viaje: viajeId, asientos } = req.body;
+  validarObjectId(clienteId, 'El cliente');
   validarObjectId(viajeId, 'El viaje de ida');
   if (req.body.regreso !== undefined) {
     validarCamposPermitidos(req.body.regreso, ['viaje', 'asientos', 'pasajeros']);
@@ -565,6 +656,9 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
   };
   validarAsientos(asientos);
   if (req.body.regreso) validarAsientos(req.body.regreso.asientos);
+
+  const comprador = await Cliente.findById(clienteId);
+  if (!comprador) return res.status(404).json({ error: 'El perfil del cliente no existe.' });
 
   const prepararTrayecto = async (id, numeros, pasajeros) => {
     const viaje = await Viaje.findById(id).populate('vehiculo').populate('ruta');
@@ -623,11 +717,6 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
     }
   }
 
-  const comprador = await Cliente.findById(req.usuario.clienteId);
-  if (!comprador) {
-    return res.status(403).json({ error: 'La cuenta no tiene un perfil de cliente asociado.' });
-  }
-
   const boletosPreparados = [
     ...ida.boletos,
     ...(regreso ? regreso.boletos : []),
@@ -679,6 +768,9 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), a
 
 app.get('/api/reservas/codigo/:codigo', exigirBaseDeDatos, async (req, res) => {
   const codigo = String(req.params.codigo || '').trim().toUpperCase();
+  if (!/^[A-F0-9]{32}$/.test(codigo)) {
+    return res.status(400).json({ error: 'El código de reserva debe tener 32 caracteres hexadecimales.' });
+  }
   const reserva = await Reserva.findOne({ codigo_reserva: codigo })
     .populate({ path: 'viaje', populate: { path: 'ruta' } })
     .populate({ path: 'viaje_regreso', populate: { path: 'ruta' } });
@@ -699,6 +791,84 @@ app.get('/api/reservas/codigo/:codigo', exigirBaseDeDatos, async (req, res) => {
       precio_pagado: boleto.precio_pagado,
     })),
     creada: reserva.createdAt,
+  });
+});
+
+app.post('/api/reservas/:id/pagar', exigirBaseDeDatos, autenticar, async (req, res) => {
+  if (!['CLIENTE', 'ADMIN'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'No tienes permiso para procesar pagos.' });
+  }
+  validarObjectId(req.params.id, 'La reserva');
+  validarCamposPermitidos(req.body, ['metodo_pago', 'numero_tarjeta']);
+  if (req.body.metodo_pago !== 'TARJETA') {
+    return res.status(400).json({ error: 'La simulación solo admite pagos con tarjeta.' });
+  }
+  const numeroTarjeta = typeof req.body.numero_tarjeta === 'string'
+    ? req.body.numero_tarjeta.replace(/[\s-]/g, '')
+    : '';
+  if (String(req.body.numero_tarjeta || '').length > 32 || !/^\d{16}$/.test(numeroTarjeta)) {
+    return res.status(400).json({
+      error: 'Ingresa un número de tarjeta completo de 16 dígitos.',
+    });
+  }
+
+  const filtroReserva = { _id: req.params.id };
+  if (req.usuario.rol === 'CLIENTE') filtroReserva.cliente = req.usuario.clienteId;
+  const reserva = await Reserva.findOne(filtroReserva);
+  if (!reserva) return res.status(404).json({ error: 'No encontramos esa reserva en tu cuenta.' });
+  if (reserva.estado === 'CANCELADA' || reserva.pago.estado_pago === 'CANCELADO') {
+    return res.status(409).json({ error: 'No puedes pagar una reserva cancelada.' });
+  }
+  if (reserva.pago.estado_pago === 'COMPLETADO') {
+    return res.status(409).json({ error: 'Esta reserva ya tiene un pago completado.' });
+  }
+  if (!['PENDIENTE', 'RECHAZADO'].includes(reserva.pago.estado_pago)) {
+    return res.status(409).json({ error: 'La reserva no está disponible para procesar el pago.' });
+  }
+
+  const fechaPago = new Date();
+  const referencia = `SIM-${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+  const filtroPago = {
+    _id: reserva._id,
+    ...(req.usuario.rol === 'CLIENTE' ? { cliente: req.usuario.clienteId } : {}),
+    estado: { $ne: 'CANCELADA' },
+    'pago.estado_pago': reserva.pago.estado_pago,
+    'pago.referencia_transaccion': reserva.pago.referencia_transaccion
+      ? reserva.pago.referencia_transaccion
+      : { $exists: false },
+  };
+  const actualizacion = {
+    'pago.monto_pagado': reserva.monto_total,
+    'pago.metodo_pago': 'TARJETA',
+    'pago.estado_pago': 'COMPLETADO',
+    'pago.referencia_transaccion': referencia,
+    'pago.fecha_pago': fechaPago,
+    estado: 'CONFIRMADA',
+  };
+  const reservaActualizada = await Reserva.findOneAndUpdate(
+    filtroPago,
+    { $set: actualizacion },
+    { new: true, runValidators: true },
+  );
+  if (!reservaActualizada) {
+    return res.status(409).json({
+      error: 'El pago cambió mientras se procesaba. Consulta el estado de la reserva antes de reintentar.',
+    });
+  }
+
+  const pago = {
+    monto_pagado: reservaActualizada.pago.monto_pagado,
+    metodo_pago: reservaActualizada.pago.metodo_pago,
+    estado_pago: reservaActualizada.pago.estado_pago,
+    referencia_transaccion: reservaActualizada.pago.referencia_transaccion,
+    fecha_pago: reservaActualizada.pago.fecha_pago,
+  };
+  res.json({
+    mensaje: 'Pago simulado aprobado; la venta quedó confirmada.',
+    codigo_reserva: reservaActualizada.codigo_reserva,
+    estado: reservaActualizada.estado,
+    monto_total: reservaActualizada.monto_total,
+    pago,
   });
 });
 
@@ -753,6 +923,13 @@ app.patch('/api/reservas/:id/pasajeros', exigirBaseDeDatos, autenticar, autoriza
   if (reserva.estado === 'CANCELADA') {
     return res.status(409).json({ error: 'No puedes cambiar pasajeros de una reserva cancelada.' });
   }
+  const viajes = await Viaje.find({
+    _id: { $in: [reserva.viaje, reserva.viaje_regreso].filter(Boolean) },
+  }).select('fecha_hora_salida');
+  const salidaMasProxima = Math.min(...viajes.map(viaje => viaje.fecha_hora_salida.getTime()));
+  if (!viajes.length || salidaMasProxima - Date.now() < margenCancelacionMs) {
+    return res.status(409).json({ error: 'Solo puedes modificar los pasajeros con al menos 3 horas de anticipación a la salida.' });
+  }
 
   const boletos = await Boleto.find({ reserva: reserva._id });
   if (boletos.length !== req.body.pasajeros.length) {
@@ -798,6 +975,9 @@ app.post('/api/reservas/:id/cancelar', exigirBaseDeDatos, autenticar, autorizar(
     await Boleto.deleteMany({ reserva: reserva._id });
     return res.json({ mensaje: 'La reserva ya estaba cancelada.' });
   }
+  if (reserva.pago.estado_pago === 'COMPLETADO') {
+    return res.status(409).json({ error: 'No se puede cancelar una reserva pagada: la simulación no procesa reembolsos.' });
+  }
   const salidas = [reserva.viaje, reserva.viaje_regreso]
     .filter(Boolean)
     .map(viaje => viaje.fecha_hora_salida.getTime());
@@ -839,6 +1019,13 @@ const server = app.listen(PORT, () => {
 
   connectToMongoDB()
     .then(async () => {
+      const migracionNaves = await Vehiculo.updateMany(
+        { tipo_vehiculo: { $ne: 'AVION' } },
+        { $set: { tipo_vehiculo: 'AVION' } },
+      );
+      if (migracionNaves.modifiedCount) {
+        console.log(`Naves actualizadas a avión: ${migracionNaves.modifiedCount}.`);
+      }
       // Los índices deben estar listos antes de aceptar reservas concurrentes.
       await Promise.all(Object.values(mongoose.models).map(modelo => modelo.init()));
       baseLista = true;
