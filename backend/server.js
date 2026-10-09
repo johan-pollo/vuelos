@@ -909,6 +909,13 @@ app.get('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
   }));
 });
 
+// Endpoint to get total number of reservations (filtered by role)
+app.get('/api/reservas/count', exigirBaseDeDatos, autenticar, async (req, res) => {
+  const filtro = req.usuario.rol === 'ADMIN' ? {} : { cliente: req.usuario.clienteId };
+  const total = await Reserva.countDocuments(filtro);
+  res.json({ total });
+});
+
 app.patch('/api/reservas/:id/pasajeros', exigirBaseDeDatos, autenticar, autorizar('CLIENTE'), async (req, res) => {
   validarObjectId(req.params.id, 'La reserva');
   validarCamposPermitidos(req.body, ['pasajeros']);
