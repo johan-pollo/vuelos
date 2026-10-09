@@ -30,6 +30,10 @@ const { MongoClient } = require('mongodb');
 
 Los asientos se guardan como documentos embebidos dentro de `vehiculos`, no en una colección MongoDB independiente. Los registros antiguos sin `clase_asiento` se leen como económicos; al editar una nave desde el panel, la clase se guarda explícitamente.
 
+## Esquema alternativo para MySQL Workbench
+
+El archivo `vuelos_mysql_workbench.sql` define un esquema relacional equivalente para MySQL 8.0. Al ejecutarlo en Workbench crea la base `vuelos_mysql` y las tablas con claves foráneas, restricciones e índices. Es únicamente una propuesta de estructura: la aplicación actual usa MongoDB y requiere una migración específica para conectarse a MySQL; ejecutar el script no migra los documentos ni cambia el backend. Para aplicar las restricciones `CHECK`, se recomienda MySQL 8.0.16 o posterior.
+
 Las contraseñas se almacenan con bcrypt, nunca como texto plano. La API obtiene el rol desde la cuenta guardada y filtra las reservas del cliente por su perfil. Los pagos se crean como `PENDIENTE`; el backend ofrece una simulación de pago con tarjetas de prueba, sin procesador externo ni almacenamiento de datos de tarjeta.
 
 ## Elegir Mongo local o Atlas
