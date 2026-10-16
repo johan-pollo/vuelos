@@ -89,6 +89,6 @@ export const useBookingStore = defineStore('booking', () => {
 }, {
   persist: {
     key: 'vuelos-booking',
-    paths: ['selectedFlightId', 'selectedSeats', 'returnFlightId', 'returnSeats', 'passengers', 'returnPassengers'],
+    paths: ['selectedFlightId', 'selectedSeats', 'returnFlightId', 'returnSeats', 'passengers', 'returnPassengers', 'reservationCode'],
   },
 })

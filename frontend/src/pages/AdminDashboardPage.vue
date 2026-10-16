@@ -13,12 +13,6 @@
         </div>
       </div>
 
-      <q-banner rounded class="bg-blue-1 text-blue-10 q-mb-sm">
-        Las reservas realizadas desde administración se asocian al cliente que selecciones.
-      </q-banner>
-      <div class="admin-actions q-mb-lg">
-        <q-btn color="primary" icon="airline_seat_recline_normal" label="Reservar y pagar un asiento" :to="{ name: 'admin-booking' }" />
-      </div>
 
       <div v-if="loading" class="state-box">
         <q-spinner-dots color="primary" size="40px" />

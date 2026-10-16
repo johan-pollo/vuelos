@@ -11,7 +11,6 @@ const form = ref({
   ruta: '',
   vehiculo: '',
   fecha_hora_salida: '',
-  fecha_hora_llegada: '',
   precio_base: '',
 })
 const loading = ref(false)
@@ -20,14 +19,15 @@ const minimumDepartureDateTime = computed(() => {
   minimum.setMinutes(minimum.getMinutes() + 1, 0, 0)
   return toLocalDateTime(minimum)
 })
-const minimumArrivalDateTime = computed(() => {
-  if (!form.value.fecha_hora_salida) return minimumDepartureDateTime.value
-  const minimum = new Date(form.value.fecha_hora_salida)
-  minimum.setMinutes(minimum.getMinutes() + 1, 0, 0)
-  return toLocalDateTime(minimum)
-})
 const selectedRoute = computed(() => flightStore.routeOptions.find((route) => route._id === form.value.ruta))
 const selectedVehicle = computed(() => flightStore.vehicleOptions.find((vehicle) => vehicle._id === form.value.vehiculo))
+const arrivalDateTime = computed(() => {
+  if (!form.value.fecha_hora_salida || !selectedRoute.value?.duracion_estimada_min) return ''
+  const arrival = new Date(form.value.fecha_hora_salida)
+  if (Number.isNaN(arrival.getTime())) return ''
+  arrival.setMinutes(arrival.getMinutes() + selectedRoute.value.duracion_estimada_min)
+  return toLocalDateTime(arrival)
+})
 
 function toLocalDateTime(value) {
   const pad = (part) => String(part).padStart(2, '0')
@@ -44,9 +44,9 @@ onMounted(async () => {
 
 async function submit() {
   const departure = new Date(form.value.fecha_hora_salida)
-  const arrival = new Date(form.value.fecha_hora_llegada)
-  if (!form.value.ruta || !form.value.vehiculo || !form.value.fecha_hora_salida || !form.value.fecha_hora_llegada) {
-    Notify.create({ type: 'warning', message: 'Completa la ruta, la nave y las fechas del viaje.' })
+  const arrival = new Date(arrivalDateTime.value)
+  if (!form.value.ruta || !form.value.vehiculo || !form.value.fecha_hora_salida || !arrivalDateTime.value) {
+    Notify.create({ type: 'warning', message: 'Completa la ruta, la nave y la fecha de salida.' })
     return
   }
   if (Number.isNaN(departure.getTime()) || departure.getTime() <= Date.now()) {
@@ -69,7 +69,7 @@ async function submit() {
       ruta: form.value.ruta,
       vehiculo: form.value.vehiculo,
       fecha_hora_salida: new Date(form.value.fecha_hora_salida).toISOString(),
-      fecha_hora_llegada: new Date(form.value.fecha_hora_llegada).toISOString(),
+      fecha_hora_llegada: arrival.toISOString(),
       precio_base: price,
     })
 
@@ -120,12 +120,12 @@ async function submit() {
             <span class="vehicle-step-number">2</span>
             <div>
               <h4>Horario y precio</h4>
-              <p>La llegada debe ser posterior a la salida.</p>
+              <p>La hora de llegada se calcula con la duración estimada de la ruta.</p>
             </div>
           </div>
           <div class="form-grid">
             <q-input v-model="form.fecha_hora_salida" type="datetime-local" label="Salida" :min="minimumDepartureDateTime" outlined dense required />
-            <q-input v-model="form.fecha_hora_llegada" type="datetime-local" label="Llegada" :min="minimumArrivalDateTime" outlined dense required />
+            <q-input :model-value="arrivalDateTime" type="datetime-local" label="Llegada calculada" outlined dense readonly />
             <q-input v-model.number="form.precio_base" type="number" min="1" max="100000000" step="1" inputmode="numeric" label="Precio base" prefix="$" outlined dense required />
           </div>
         </section>

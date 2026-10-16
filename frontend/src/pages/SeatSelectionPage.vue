@@ -60,6 +60,8 @@ async function loadSeatMap() {
 }
 
 onMounted(async () => {
+  bookingStore.selectedSeats = []
+  bookingStore.returnSeats = []
   try {
     await flightStore.fetchFlights()
     await loadSeatMap()

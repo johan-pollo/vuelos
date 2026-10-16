@@ -10,13 +10,14 @@ const savingProfile = ref(false)
 const savingPassword = ref(false)
 const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
 const profile = reactive({
   username: authStore.user?.username || '',
   nombre: authStore.user?.cliente?.nombre || '',
   apellido: authStore.user?.cliente?.apellido || '',
   telefono: authStore.user?.cliente?.telefono || '',
 })
-const password = reactive({ actual: '', nueva: '' })
+const password = reactive({ actual: '', nueva: '', confirmar: '' })
 
 onMounted(async () => {
   try {
@@ -60,14 +61,24 @@ async function saveProfile() {
 }
 
 async function changePassword() {
+  if (!password.actual || !password.nueva || !password.confirmar) {
+    Notify.create({ type: 'warning', message: 'Completa todos los campos de contraseña.' })
+    return
+  }
+  if (password.nueva !== password.confirmar) {
+    Notify.create({ type: 'warning', message: 'La nueva contraseña y su confirmación no coinciden.' })
+    return
+  }
   savingPassword.value = true
   try {
     await authStore.changePassword({
       contrasena_actual: password.actual,
       contrasena_nueva: password.nueva,
+      confirmar_contrasena_nueva: password.confirmar,
     })
     password.actual = ''
     password.nueva = ''
+    password.confirmar = ''
     Notify.create({ type: 'positive', message: 'Contraseña actualizada.' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cambiar la contraseña.' })
@@ -139,6 +150,11 @@ function confirmDeleteAccount() {
           <q-input v-model="password.nueva" label="Nueva contraseña" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" outlined dense required minlength="10" maxlength="72" hint="Entre 10 y 72 caracteres, con al menos una letra y un número.">
             <template #append>
               <q-icon :name="showNewPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showNewPassword = !showNewPassword" />
+            </template>
+          </q-input>
+          <q-input v-model="password.confirmar" label="Confirmar nueva contraseña" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" outlined dense required minlength="10" maxlength="72">
+            <template #append>
+              <q-icon :name="showConfirmPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showConfirmPassword = !showConfirmPassword" />
             </template>
           </q-input>
         </div>

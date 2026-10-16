@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
+import api from '../services/api'
 import { useBookingStore } from '../stores/bookingStore'
 import { useAuthStore } from '../stores/authStore'
 
@@ -58,7 +59,18 @@ function validateExpiry(value) {
   return year > currentYear || (year === currentYear && month >= currentMonth)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  if (!reservation.value?._id && bookingStore.reservationCode) {
+    try {
+      const { data } = await api.get('/reservas?limite=50')
+      bookingStore.reservation = data.find(item => item.codigo_reserva === bookingStore.reservationCode) || null
+    } catch (error) {
+      Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible recuperar la reserva.' })
+      router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
+      return
+    }
+  }
+
   if (!reservation.value?._id) {
     Notify.create({ type: 'warning', message: 'Primero debes crear una reserva para realizar el pago.' })
     router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
@@ -127,6 +139,13 @@ async function submitPayment() {
 
       <q-banner rounded class="bg-blue-1 text-blue-10 q-mb-lg">
         Esta es una simulación de pago. No se realiza ningún cobro real.
+      </q-banner>
+
+      <q-banner rounded class="bg-green-1 text-green-10 q-mb-lg">
+        <template #avatar>
+          <q-icon name="check_circle" color="green-8" />
+        </template>
+        <strong>¡Tu reserva ya está creada y confirmada!</strong> Los asientos están separados para ti. Completa el pago a continuación para generar tu boleto.
       </q-banner>
 
       <div class="payment-total">

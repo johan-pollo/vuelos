@@ -81,7 +81,7 @@ La autenticación guarda el token JWT y el usuario en el almacenamiento local de
 ## Funciones de administración
 
 - Dashboard con resumen de vuelos, reservas, asientos disponibles e importes de reservas; incluye acceso para reservar y pagar un asiento a nombre de un cliente.
-- Creación de viajes a partir de rutas y naves ya registradas. Los estados se calculan automáticamente y la cancelación manual solo se permite antes de la salida.
+- Creación de viajes a partir de rutas y naves ya registradas; la llegada se calcula con la duración estimada de la ruta. Los estados se calculan automáticamente y la cancelación manual solo se permite antes de la salida.
 - Listado de vuelos ordenado por fecha de creación con filtros por origen, destino, nave, fecha y estado; permite cancelar o eliminar vuelos sujetos a las validaciones del backend.
 - Catálogo de rutas: consultar, crear y editar rutas con origen y destino tomados del catálogo de ciudades con aeropuerto.
 - Catálogo de naves: consultar, crear y editar aviones; configurar los asientos por clase **económica**, **ejecutiva** y **primera**. La capacidad se calcula a partir de los asientos configurados.

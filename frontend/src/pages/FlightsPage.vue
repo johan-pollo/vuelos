@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFlightStore } from '../stores/flightStore'
@@ -48,6 +48,15 @@ const filteredFlights = computed(() => {
   })
 })
 
+const itemsPerPage = 6
+const currentPage = ref(1)
+const totalPages = computed(() => Math.ceil(filteredFlights.value.length / itemsPerPage))
+const pagedFlights = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredFlights.value.slice(start, start + itemsPerPage)
+})
+watch(filteredFlights, () => { currentPage.value = 1 })
+
 function formatDateTime(value) {
   return new Date(value).toLocaleString('es-CO', {
     dateStyle: 'medium',
@@ -77,46 +86,58 @@ function formatCurrency(value) {
       <p>No encontramos vuelos que coincidan con tu búsqueda.</p>
     </div>
 
-    <div v-else class="flight-list">
-      <q-card v-for="flight in filteredFlights" :key="flight._id" class="flight-card shadow-2">
-        <div class="flight-route">
-          <div class="flight-route-stop">
-            <small>Origen</small>
-            <strong>{{ flight.ruta?.origen }}</strong>
+    <div v-else class="flights-page">
+      <div v-if="totalPages > 1" class="flights-pagination-top q-mb-md">
+        <q-pagination v-model="currentPage" :max="totalPages" color="primary" direction-links boundary-links />
+      </div>
+
+      <div class="flight-list">
+        <q-card v-for="flight in pagedFlights" :key="flight._id" class="flight-card shadow-2">
+          <div class="flight-route">
+            <div class="flight-route-stop">
+              <small>Origen</small>
+              <strong>{{ flight.ruta?.origen }}</strong>
+            </div>
+            <q-icon name="arrow_forward" color="primary" />
+            <div class="flight-route-stop">
+              <small>Destino</small>
+              <strong>{{ flight.ruta?.destino }}</strong>
+            </div>
           </div>
-          <q-icon name="arrow_forward" color="primary" />
-          <div class="flight-route-stop">
-            <small>Destino</small>
-            <strong>{{ flight.ruta?.destino }}</strong>
+
+          <div class="flight-destination-photo-wrap">
+            <img :src="destinationPhoto(flight.ruta?.destino).src" :alt="`Referencia turística de ${flight.ruta?.destino}`" class="flight-destination-photo" loading="lazy">
+            <a class="photo-credit" :href="destinationPhoto(flight.ruta?.destino).source" target="_blank" rel="noopener noreferrer">{{ destinationPhoto(flight.ruta?.destino).credit }}</a>
           </div>
-        </div>
 
-        <div class="flight-destination-photo-wrap">
-          <img :src="destinationPhoto(flight.ruta?.destino).src" :alt="`Referencia turística de ${flight.ruta?.destino}`" class="flight-destination-photo" loading="lazy">
-          <a class="photo-credit" :href="destinationPhoto(flight.ruta?.destino).source" target="_blank" rel="noopener noreferrer">{{ destinationPhoto(flight.ruta?.destino).credit }}</a>
-        </div>
+          <div class="flight-meta-grid">
+            <div class="flight-info-item"><small>Salida</small><strong>{{ formatDateTime(flight.fecha_hora_salida) }}</strong></div>
+            <div class="flight-info-item"><small>Llegada</small><strong>{{ formatDateTime(flight.fecha_hora_llegada) }}</strong></div>
+            <div class="flight-info-item"><small>Duración</small><strong>{{ formatDuration(flight.ruta?.duracion_estimada_min) }}</strong></div>
+            <div class="flight-info-item"><small>Vehículo</small><strong>{{ flight.vehiculo?.placa_o_matricula }}</strong></div>
+            <div class="flight-info-item"><small>Disponibles</small><strong>{{ flight.asientos_disponibles }}</strong></div>
+            <div class="flight-info-item"><small>Precio base</small><strong>{{ formatCurrency(flight.precio_base) }}</strong></div>
+          </div>
 
-        <div class="flight-meta-grid">
-          <div class="flight-info-item"><small>Salida</small><strong>{{ formatDateTime(flight.fecha_hora_salida) }}</strong></div>
-          <div class="flight-info-item"><small>Llegada</small><strong>{{ formatDateTime(flight.fecha_hora_llegada) }}</strong></div>
-          <div class="flight-info-item"><small>Duración</small><strong>{{ formatDuration(flight.ruta?.duracion_estimada_min) }}</strong></div>
-          <div class="flight-info-item"><small>Vehículo</small><strong>{{ flight.vehiculo?.placa_o_matricula }}</strong></div>
-          <div class="flight-info-item"><small>Disponibles</small><strong>{{ flight.asientos_disponibles }}</strong></div>
-          <div class="flight-info-item"><small>Precio base</small><strong>{{ formatCurrency(flight.precio_base) }}</strong></div>
-        </div>
+          <div class="flight-actions">
+            <q-btn color="primary" label="Seleccionar vuelo" :to="{
+              name: 'flight-detail',
+              params: { id: flight._id },
+              query: {
+                tipoViaje: route.query.tipoViaje,
+                fechaRegreso: route.query.fechaRegreso,
+                pasajeros: route.query.pasajeros,
+              },
+            }" />
+          </div>
+        </q-card>
+      </div>
 
-        <div class="flight-actions">
-          <q-btn color="primary" label="Seleccionar vuelo" :to="{
-            name: 'flight-detail',
-            params: { id: flight._id },
-            query: {
-              tipoViaje: route.query.tipoViaje,
-              fechaRegreso: route.query.fechaRegreso,
-              pasajeros: route.query.pasajeros,
-            },
-          }" />
-        </div>
-      </q-card>
+      <div v-if="totalPages > 1" class="flights-pagination-bottom q-mt-md">
+        <q-pagination v-model="currentPage" :max="totalPages" color="primary" direction-links boundary-links />
+      </div>
     </div>
   </q-page>
 </template>
+
+

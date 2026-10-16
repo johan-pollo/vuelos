@@ -35,8 +35,8 @@ function fitPassengerList(passengers, seats) {
 }
 
 onMounted(async () => {
-  bookingStore.passengers = fitPassengerList(bookingStore.passengers, bookingStore.selectedSeats)
-  bookingStore.returnPassengers = fitPassengerList(bookingStore.returnPassengers, bookingStore.returnSeats)
+  bookingStore.passengers = bookingStore.selectedSeats.map(() => blankPassenger())
+  bookingStore.returnPassengers = bookingStore.returnSeats.map(() => blankPassenger())
   let profile = authStore.user?.cliente
   if (!profile?.nombre) {
     try {
@@ -45,12 +45,10 @@ onMounted(async () => {
       Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar los datos del perfil.' })
     }
   }
-  if (profile) {
-    for (const passenger of [bookingStore.passengers[0], bookingStore.returnPassengers[0]]) {
-      if (!passenger) continue
-      passenger.nombre ||= profile.nombre || ''
-      passenger.apellido ||= profile.apellido || ''
-    }
+  if (profile && bookingStore.passengers[0]) {
+    bookingStore.passengers[0].nombre = profile.nombre || ''
+    bookingStore.passengers[0].apellido = profile.apellido || ''
+    bookingStore.passengers[0].documento_identidad = profile.documento_identidad || ''
   }
 })
 
