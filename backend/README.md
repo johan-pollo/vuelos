@@ -90,6 +90,8 @@ El precio base del viaje corresponde a clase económica; ejecutiva aplica factor
 
 Al cancelar una reserva, el backend conserva el registro histórico con estado `CANCELADA` y elimina sus boletos. El mapa de asientos deriva la ocupación de esos boletos, así que quedan disponibles otra vez. El índice único sigue protegiendo las compras concurrentes.
 
+Las reservas con pago `PENDIENTE` se cancelan automáticamente al llegar la salida de cualquiera de sus trayectos; el backend revisa cada 15 segundos y también al iniciar, y libera sus asientos.
+
 ## Vistas del frontend
 
 - **CLIENTE:** la API ofrece un único `POST /api/auth/login` para clientes y administradores; el rol de la cuenta determina los permisos. El registro acepta `username` opcional; si no se envía, el servidor crea uno a partir del correo. Los visitantes pueden consultar vuelos reales programados en la página de inicio y `/vuelos`; reservar continúa requiriendo inicio de sesión. El flujo admite ida y regreso, selección de asientos por clase y captura de datos de pasajeros. El precio se calcula en el servidor. La reserva queda con pago `PENDIENTE` hasta invocar la simulación de pago.

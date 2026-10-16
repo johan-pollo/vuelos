@@ -22,6 +22,8 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || 'vuelos';
 let baseLista = false;
+let expiracionReservasEnCurso = false;
+let expiracionReservasTimer;
 const ciudadesConAeropuerto = [
   'Apartadó', 'Arauca', 'Armenia', 'Bahía Solano', 'Barrancabermeja', 'Barranquilla',
   'Bogotá', 'Bucaramanga', 'Buenaventura', 'Cali', 'Capurganá', 'Caucasia',
@@ -144,6 +146,60 @@ function exigirBaseDeDatos(req, res, next) {
     return res.status(503).json({ error: 'La base de datos no está conectada.' });
   }
   next();
+}
+
+async function cancelarReservasVencidas() {
+  if (!baseLista || expiracionReservasEnCurso) return;
+  expiracionReservasEnCurso = true;
+  try {
+    const reservasPorLimpiar = await Reserva.find({
+      estado: 'CANCELADA',
+      boletos: { $ne: [] },
+    }).select('_id');
+    for (const reserva of reservasPorLimpiar) {
+      await liberarBoletosReservaCancelada(reserva._id);
+    }
+
+    const viajesVencidos = await Viaje.find({
+      fecha_hora_salida: { $lte: new Date() },
+    }).select('_id');
+    if (!viajesVencidos.length) return;
+
+    const reservasPendientes = await Reserva.find({
+      estado: { $ne: 'CANCELADA' },
+      'pago.estado_pago': 'PENDIENTE',
+      $or: [
+        { viaje: { $in: viajesVencidos.map(viaje => viaje._id) } },
+        { viaje_regreso: { $in: viajesVencidos.map(viaje => viaje._id) } },
+      ],
+    }).select('_id');
+
+    for (const reserva of reservasPendientes) {
+      await cancelarReservaPendiente(reserva._id);
+    }
+  } finally {
+    expiracionReservasEnCurso = false;
+  }
+}
+
+async function cancelarReservaPendiente(reservaId) {
+  const cancelada = await Reserva.findOneAndUpdate(
+    { _id: reservaId, estado: { $ne: 'CANCELADA' }, 'pago.estado_pago': 'PENDIENTE' },
+    { $set: { estado: 'CANCELADA', 'pago.estado_pago': 'CANCELADO' } },
+    { new: true },
+  );
+  if (!cancelada) return false;
+  await liberarBoletosReservaCancelada(cancelada._id);
+  console.log(`Reserva pendiente vencida cancelada: ${cancelada.codigo_reserva}.`);
+  return true;
+}
+
+async function liberarBoletosReservaCancelada(reservaId) {
+  await Boleto.deleteMany({ reserva: reservaId });
+  await Reserva.updateOne(
+    { _id: reservaId, estado: 'CANCELADA' },
+    { $set: { boletos: [] } },
+  );
 }
 
 async function obtenerEstado(req, res) {
@@ -820,6 +876,16 @@ app.post('/api/reservas/:id/pagar', exigirBaseDeDatos, autenticar, async (req, r
   if (req.usuario.rol === 'CLIENTE') filtroReserva.cliente = req.usuario.clienteId;
   const reserva = await Reserva.findOne(filtroReserva);
   if (!reserva) return res.status(404).json({ error: 'No encontramos esa reserva en tu cuenta.' });
+  if (reserva.pago.estado_pago === 'PENDIENTE') {
+    const viajeVencido = await Viaje.exists({
+      _id: { $in: [reserva.viaje, reserva.viaje_regreso].filter(Boolean) },
+      fecha_hora_salida: { $lte: new Date() },
+    });
+    if (viajeVencido) {
+      await cancelarReservaPendiente(reserva._id);
+      return res.status(409).json({ error: 'La reserva venció al iniciar el vuelo y fue cancelada.' });
+    }
+  }
   if (reserva.estado === 'CANCELADA' || reserva.pago.estado_pago === 'CANCELADO') {
     return res.status(409).json({ error: 'No puedes pagar una reserva cancelada.' });
   }
@@ -1042,6 +1108,15 @@ const server = app.listen(PORT, () => {
       await Promise.all(Object.values(mongoose.models).map(modelo => modelo.init()));
       baseLista = true;
       console.log('Conexión exitosa a MongoDB; modelos e índices listos.');
+      cancelarReservasVencidas().catch(error => {
+        console.error('Error cancelando reservas pendientes vencidas:', error.message);
+      });
+      expiracionReservasTimer = setInterval(() => {
+        cancelarReservasVencidas().catch(error => {
+          console.error('Error cancelando reservas pendientes vencidas:', error.message);
+        });
+      }, 15000);
+      expiracionReservasTimer.unref();
     })
     .catch(error => {
       baseLista = false;
@@ -1050,12 +1125,14 @@ const server = app.listen(PORT, () => {
 });
 
 process.on('SIGINT', async () => {
+  clearInterval(expiracionReservasTimer);
   server.close();
   await disconnectFromMongoDB();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
+  clearInterval(expiracionReservasTimer);
   server.close();
   await disconnectFromMongoDB();
   process.exit(0);
