@@ -301,11 +301,15 @@ app.patch('/api/auth/me', exigirBaseDeDatos, autenticar, async (req, res) => {
 });
 
 app.patch('/api/auth/me/password', exigirBaseDeDatos, autenticar, async (req, res) => {
-  validarCamposPermitidos(req.body, ['contrasena_actual', 'contrasena_nueva']);
+  validarCamposPermitidos(req.body, ['contrasena_actual', 'contrasena_nueva', 'confirmar_contrasena_nueva']);
   const contrasenaActual = String(req.body.contrasena_actual || '');
   const contrasenaNueva = String(req.body.contrasena_nueva || '');
-  if (!contrasenaActual || !contrasenaNueva) {
-    return res.status(400).json({ error: 'Indica la contraseña actual y la nueva contraseña.' });
+  const confirmarContrasena = String(req.body.confirmar_contrasena_nueva || '');
+  if (!contrasenaActual || !contrasenaNueva || !confirmarContrasena) {
+    return res.status(400).json({ error: 'Indica la contraseña actual, la nueva contraseña y su confirmación.' });
+  }
+  if (contrasenaNueva !== confirmarContrasena) {
+    return res.status(400).json({ error: 'La nueva contraseña y su confirmación no coinciden.' });
   }
   validarContrasena(contrasenaNueva);
 
@@ -873,8 +877,9 @@ app.post('/api/reservas/:id/pagar', exigirBaseDeDatos, autenticar, async (req, r
 });
 
 app.get('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
-  const limite = Math.min(Math.max(Number.parseInt(req.query.limite, 10) || 10, 1), 50);
-  const filtro = req.usuario.rol === 'ADMIN' ? {} : { cliente: req.usuario.clienteId };
+  const esAdmin = req.usuario.rol === 'ADMIN';
+  const limite = Math.min(Math.max(Number.parseInt(req.query.limite, 10) || (esAdmin ? 100 : 10), 1), esAdmin ? 500 : 50);
+  const filtro = esAdmin ? {} : { cliente: req.usuario.clienteId };
   const reservas = await Reserva.find(filtro)
     .sort({ createdAt: -1 })
     .limit(limite)
