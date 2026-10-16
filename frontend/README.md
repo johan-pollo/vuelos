@@ -64,7 +64,7 @@ src/
   style.css                 Tema visual y estilos globales
 ```
 
-La autenticación guarda el token JWT y el usuario en el almacenamiento local del navegador. El interceptor de Axios agrega `Authorization: Bearer <token>` a solicitudes autenticadas. Las guardas del router evitan mostrar rutas de compra a visitantes y restringen las vistas de administración al rol `ADMIN`; la autorización definitiva siempre corresponde al backend.
+Pinia mantiene el token JWT y el usuario en el store de autenticación y persiste la sesión; también conserva el estado del proceso de compra. El interceptor de Axios agrega `Authorization: Bearer <token>` a solicitudes autenticadas. Las guardas del router evitan mostrar rutas de compra a visitantes y restringen las vistas de administración al rol `ADMIN`; la autorización definitiva siempre corresponde al backend.
 
 ## Funciones de cliente
 

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '../stores/authStore'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
@@ -9,7 +10,7 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vuelos-token')
+  const token = useAuthStore().token
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -29,10 +30,7 @@ api.interceptors.response.use(
         || endpoint.startsWith('/reservas/codigo/'))
 
     if (error.response?.status === 401 && hadToken) {
-      localStorage.removeItem('vuelos-token')
-      localStorage.removeItem('vuelos-user')
-      localStorage.removeItem('vuelos-auth')
-      window.dispatchEvent(new Event('vuelos:session-invalid'))
+      useAuthStore().logout()
       if (publicGet && !request._retriedWithoutSession) {
         request._retriedWithoutSession = true
         delete request.headers.Authorization
