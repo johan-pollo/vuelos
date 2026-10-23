@@ -271,6 +271,12 @@ const pasajeroSchema = new Schema({
     maxlength: [25, 'El documento del pasajero no puede superar 25 caracteres.'],
     match: [/^[A-Za-z0-9.-]+$/, 'El documento del pasajero contiene caracteres no permitidos.'],
   },
+  telefono: {
+    type: String,
+    trim: true,
+    maxlength: [20, 'El teléfono del pasajero no puede superar 20 caracteres.'],
+    match: [/^\+?[0-9 ()-]{7,20}$/, 'El teléfono del pasajero no es válido.'],
+  },
 }, { _id: false, strict: 'throw' });
 
 const reservaSchema = new Schema({

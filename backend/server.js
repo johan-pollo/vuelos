@@ -100,7 +100,14 @@ function validarListaPasajeros(pasajeros, asientos) {
 
   const porAsiento = new Map();
   for (const pasajero of pasajeros) {
-    validarCamposPermitidos(pasajero, ['numero_asiento', 'nombre', 'apellido', 'documento_identidad']);
+    validarCamposPermitidos(pasajero, ['numero_asiento', 'nombre', 'apellido', 'documento_identidad', 'telefono']);
+    if (pasajero.telefono !== undefined
+      && pasajero.telefono !== ''
+      && (typeof pasajero.telefono !== 'string' || !/^\+?[0-9 ()-]{7,20}$/.test(pasajero.telefono.trim()))) {
+      const error = new Error('El teléfono del pasajero no es válido.');
+      error.status = 400;
+      throw error;
+    }
     if (typeof pasajero.numero_asiento !== 'string' || !asientos.includes(pasajero.numero_asiento)) {
       const error = new Error('Cada pasajero debe estar asociado con uno de los asientos seleccionados.');
       error.status = 400;
@@ -115,6 +122,7 @@ function validarListaPasajeros(pasajeros, asientos) {
       nombre: pasajero.nombre,
       apellido: pasajero.apellido,
       documento_identidad: pasajero.documento_identidad,
+      ...(pasajero.telefono?.trim() ? { telefono: pasajero.telefono.trim() } : {}),
     });
   }
 
@@ -932,8 +940,8 @@ app.get('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
     .sort({ createdAt: -1 })
     .limit(limite)
     .populate('cliente', 'documento_identidad nombre apellido email')
-    .populate({ path: 'viaje', populate: { path: 'ruta' } })
-    .populate({ path: 'viaje_regreso', populate: { path: 'ruta' } });
+    .populate({ path: 'viaje', populate: [{ path: 'ruta' }, { path: 'vehiculo', select: 'placa_o_matricula tipo_vehiculo' }] })
+    .populate({ path: 'viaje_regreso', populate: [{ path: 'ruta' }, { path: 'vehiculo', select: 'placa_o_matricula tipo_vehiculo' }] });
 
   const reservaIds = reservas.map(reserva => reserva._id);
   const boletos = await Boleto.find({ reserva: { $in: reservaIds } })
@@ -982,6 +990,9 @@ app.patch('/api/reservas/:id/pasajeros', exigirBaseDeDatos, autenticar, autoriza
   if (!reserva) return res.status(404).json({ error: 'No encontramos esa reserva en tu cuenta.' });
   if (reserva.estado === 'CANCELADA') {
     return res.status(409).json({ error: 'No puedes cambiar pasajeros de una reserva cancelada.' });
+  }
+  if (reserva.pago?.estado_pago === 'COMPLETADO') {
+    return res.status(409).json({ error: 'No puedes cambiar pasajeros de una reserva pagada.' });
   }
   const viajes = await Viaje.find({
     _id: { $in: [reserva.viaje, reserva.viaje_regreso].filter(Boolean) },
