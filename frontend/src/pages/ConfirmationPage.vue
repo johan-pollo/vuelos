@@ -16,12 +16,19 @@ const canConfirmReservation = computed(() => !flightsLoading.value
   && Boolean(selectedFlight.value)
   && (!bookingStore.returnFlightId || Boolean(returnFlight.value)))
 const classFactors = { ECONOMICA: 1, EJECUTIVA: 1.5, PRIMERA: 2 }
+const total = computed(() => [
+  [selectedFlight.value, bookingStore.selectedSeats],
+  [returnFlight.value, bookingStore.returnSeats],
+].reduce((sum, [flight, seats]) => sum + (flight
+  ? seats.reduce((legTotal, seat) => legTotal + seatDetails(flight, seat).price, 0)
+  : 0), 0))
 
 function seatDetails(flight, seatNumber) {
   const seat = flight?.vehiculo?.asientos?.find((item) => item.numero_asiento === seatNumber)
   const seatClass = seat?.clase_asiento || 'ECONOMICA'
   return {
     type: seat?.tipo_asiento || seat?.ubicacion || 'No disponible',
+    seatClass: { ECONOMICA: 'Económica', EJECUTIVA: 'Ejecutiva', PRIMERA: 'Primera clase' }[seatClass] || seatClass,
     price: Math.round(Number(flight?.precio_base || 0) * (classFactors[seatClass] || 1)),
   }
 }
@@ -102,19 +109,17 @@ async function createReservation() {
 
       <template v-else>
         <q-banner class="bg-blue-1 text-blue-10 q-mb-md">
-          Al continuar, crearemos tu reserva pendiente y podrás pagar con tarjeta en la siguiente pantalla.
+          Revisa los vuelos, asientos y pasajeros. Al confirmar, continuarás a la pasarela de pago simulada.
         </q-banner>
 
         <div class="summary-box">
           <div class="summary-item"><strong>Vuelo de ida</strong><br>{{ selectedFlight.ruta?.origen }} → {{ selectedFlight.ruta?.destino }}</div>
           <div class="summary-item"><strong>Salida de ida</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_salida) }}</div>
           <div class="summary-item"><strong>Llegada de ida</strong><br>{{ formatDateTime(selectedFlight.fecha_hora_llegada) }}</div>
-          <div class="summary-item"><strong>Asientos de ida</strong><br>{{ bookingStore.selectedSeats.join(', ') || 'Sin selección' }}</div>
           <template v-if="returnFlight">
             <div class="summary-item"><strong>Vuelo de regreso</strong><br>{{ returnFlight.ruta?.origen }} → {{ returnFlight.ruta?.destino }}</div>
             <div class="summary-item"><strong>Fecha de regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_salida) }}</div>
             <div class="summary-item"><strong>Llegada del regreso</strong><br>{{ formatDateTime(returnFlight.fecha_hora_llegada) }}</div>
-            <div class="summary-item"><strong>Asientos de regreso</strong><br>{{ bookingStore.returnSeats.join(', ') || 'Sin selección' }}</div>
           </template>
         </div>
 
@@ -124,12 +129,13 @@ async function createReservation() {
             <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
           </div>
           <div class="passenger-list">
-            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Clase</span><span>Valor</span></div>
+            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Teléfono</span><span>Tipo / clase</span><span>Valor</span></div>
             <div v-for="(passenger, index) in bookingStore.passengers" :key="`passenger-${index}`" class="passenger-list-row">
               <strong>{{ bookingStore.selectedSeats[index] }}</strong>
               <strong>{{ passenger.nombre }} {{ passenger.apellido }}</strong>
               <span>{{ passenger.documento_identidad }}</span>
-              <span>{{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).type }}</span>
+              <span>{{ passenger.telefono || '—' }}</span>
+              <span>{{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).type }} · {{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).seatClass }}</span>
               <span>{{ formatCurrency(seatDetails(selectedFlight, bookingStore.selectedSeats[index]).price) }}</span>
             </div>
           </div>
@@ -141,21 +147,23 @@ async function createReservation() {
             <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
           </div>
           <div class="passenger-list">
-            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Clase</span><span>Valor</span></div>
+            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Teléfono</span><span>Tipo / clase</span><span>Valor</span></div>
             <div v-for="(passenger, index) in bookingStore.returnPassengers" :key="`return-passenger-${index}`" class="passenger-list-row">
               <strong>{{ bookingStore.returnSeats[index] }}</strong>
               <strong>{{ passenger.nombre }} {{ passenger.apellido }}</strong>
               <span>{{ passenger.documento_identidad }}</span>
-              <span>{{ seatDetails(returnFlight, bookingStore.returnSeats[index]).type }}</span>
+              <span>{{ passenger.telefono || '—' }}</span>
+              <span>{{ seatDetails(returnFlight, bookingStore.returnSeats[index]).type }} · {{ seatDetails(returnFlight, bookingStore.returnSeats[index]).seatClass }}</span>
               <span>{{ formatCurrency(seatDetails(returnFlight, bookingStore.returnSeats[index]).price) }}</span>
             </div>
           </div>
         </section>
+        <div class="summary-total"><strong>Total de la reserva: {{ formatCurrency(total) }}</strong></div>
       </template>
 
       <div class="form-actions">
-        <q-btn flat label="Volver" :to="{ name: 'summary' }" class="back-navigation" />
-        <q-btn color="primary" :loading="loading" :disable="!canConfirmReservation" label="Continuar al pago" @click="createReservation" />
+        <q-btn flat label="Volver" :to="{ name: 'passenger' }" class="back-navigation" />
+        <q-btn color="primary" :loading="loading" :disable="!canConfirmReservation" label="Confirmar reserva y continuar al pago" @click="createReservation" />
       </div>
     </div>
   </q-page>

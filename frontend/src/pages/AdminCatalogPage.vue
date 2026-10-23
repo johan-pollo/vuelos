@@ -298,7 +298,7 @@ async function showCustomerReservations(customer) {
   reservationsDialogOpen.value = true
   loadingReservations.value = true
   try {
-    const { data } = await api.get('/reservas?limite=50')
+    const { data } = await api.get('/reservas?limite=500')
     const customerId = customer.cliente?._id || customer.cliente
     customerReservations.value = data.filter((reservation) => (
       reservation.cliente?._id === customerId || reservation.cliente === customerId
@@ -316,18 +316,28 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function formatReservationSeats(reservation) {
-  const tickets = reservation.detalle_asientos || []
-  const legs = [
-    { label: 'Ida', flight: reservation.viaje },
-    { label: 'Regreso', flight: reservation.viaje_regreso },
-  ].filter((leg) => leg.flight?._id)
-  return legs.map(({ label, flight }) => {
-    const seats = tickets
-      .filter((ticket) => String(ticket.viaje) === String(flight._id))
-      .map((ticket) => ticket.numero_asiento)
-    return seats.length ? `${label}: ${seats.join(', ')}` : ''
-  }).filter(Boolean).join(' · ') || (reservation.asientos || []).join(', ') || '—'
+function ticketsForFlight(reservation, flight) {
+  if (!flight?._id) return []
+  return (reservation.detalle_asientos || []).filter((ticket) => (
+    String(ticket.viaje?._id || ticket.viaje) === String(flight._id)
+  ))
+}
+
+function paymentLabel(reservation) {
+  return {
+    COMPLETADO: 'Pagado',
+    PENDIENTE: 'Pendiente',
+    RECHAZADO: 'Rechazado',
+    CANCELADO: 'Cancelado',
+  }[reservation.pago?.estado_pago] || 'Sin pago'
+}
+
+function seatClassLabel(value) {
+  return {
+    ECONOMICA: 'Económica',
+    EJECUTIVA: 'Ejecutiva',
+    PRIMERA: 'Primera clase',
+  }[value] || 'Económica'
 }
 
 function formatCurrency(value) {
@@ -515,6 +525,7 @@ function confirmDeleteCustomer(customer) {
             <div class="text-overline text-primary">Reservas del cliente</div>
             <div class="text-h6">{{ selectedCustomer?.cliente?.nombre }} {{ selectedCustomer?.cliente?.apellido }}</div>
             <div class="text-caption text-grey-7">{{ selectedCustomer?.email }}</div>
+            <div class="text-caption text-grey-7">Documento: {{ selectedCustomer?.cliente?.documento_identidad || '—' }}</div>
           </div>
           <q-btn v-close-popup flat round dense icon="close" aria-label="Cerrar" />
         </q-card-section>
@@ -526,21 +537,46 @@ function confirmDeleteCustomer(customer) {
           </div>
           <div v-else-if="customerReservations.length" class="user-reservation-list">
             <article v-for="reservation in customerReservations" :key="reservation._id" class="user-reservation-card">
-              <div class="user-reservation-route">
-                <strong>{{ reservation.viaje?.ruta?.origen || 'Origen no disponible' }}</strong>
-                <q-icon name="arrow_forward" color="primary" />
-                <strong>{{ reservation.viaje?.ruta?.destino || 'Destino no disponible' }}</strong>
+              <div class="user-reservation-heading">
+                <div>
+                  <strong>Reserva {{ reservation.codigo_reserva || reservation._id }}</strong>
+                  <small>Creada {{ formatDateTime(reservation.createdAt) }}</small>
+                </div>
+                <q-badge :color="reservation.estado === 'CANCELADA' ? 'negative' : reservation.pago?.estado_pago === 'COMPLETADO' ? 'positive' : 'warning'">
+                  {{ reservation.estado || '—' }} · {{ paymentLabel(reservation) }}
+                </q-badge>
               </div>
-              <div v-if="reservation.viaje_regreso?.ruta" class="user-reservation-route">
-                <strong>{{ reservation.viaje_regreso.ruta.origen }}</strong>
-                <q-icon name="arrow_forward" color="primary" />
-                <strong>{{ reservation.viaje_regreso.ruta.destino }} (regreso)</strong>
+              <div v-for="leg in [
+                { label: 'Ida', flight: reservation.viaje },
+                { label: 'Regreso', flight: reservation.viaje_regreso },
+              ].filter(item => item.flight)" :key="`${reservation._id}-${leg.label}`" class="user-reservation-leg">
+                <div class="user-reservation-route">
+                  <span class="eyebrow">{{ leg.label }}</span>
+                  <strong>{{ leg.flight.ruta?.origen || 'Origen no disponible' }}</strong>
+                  <q-icon name="arrow_forward" color="primary" />
+                  <strong>{{ leg.flight.ruta?.destino || 'Destino no disponible' }}</strong>
+                </div>
+                <div class="user-reservation-meta">
+                  <span><small>Salida</small>{{ formatDateTime(leg.flight.fecha_hora_salida) }}</span>
+                  <span><small>Llegada</small>{{ formatDateTime(leg.flight.fecha_hora_llegada) }}</span>
+                  <span><small>Duración</small>{{ formatDuration(leg.flight.ruta?.duracion_estimada_min) }}</span>
+                  <span><small>Aeronave</small>{{ leg.flight.vehiculo?.placa_o_matricula || '—' }} · {{ leg.flight.vehiculo?.tipo_vehiculo || '—' }}</span>
+                </div>
+                <div v-if="ticketsForFlight(reservation, leg.flight).length" class="user-reservation-ticket-list">
+                  <div v-for="ticket in ticketsForFlight(reservation, leg.flight)" :key="ticket.id" class="user-reservation-ticket">
+                    <strong>Asiento {{ ticket.numero_asiento }} · {{ seatClassLabel(ticket.clase_asiento) }}</strong>
+                    <span>Pasajero: {{ ticket.pasajero?.nombre || '—' }} {{ ticket.pasajero?.apellido || '' }}</span>
+                    <span>Documento: {{ ticket.pasajero?.documento_identidad || '—' }}</span>
+                    <span>Teléfono: {{ ticket.pasajero?.telefono || '—' }}</span>
+                    <strong>{{ formatCurrency(ticket.precio_pagado) }}</strong>
+                  </div>
+                </div>
               </div>
-              <div class="user-reservation-meta">
-                <span><small>Salida</small>{{ formatDateTime(reservation.viaje?.fecha_hora_salida) }}</span>
-                <span><small>Asientos</small>{{ formatReservationSeats(reservation) }}</span>
-                <span><small>Estado</small>{{ reservation.estado || '—' }}</span>
-                <strong>{{ formatCurrency(reservation.monto_total) }}</strong>
+              <div class="user-reservation-payment">
+                <span><small>Pago</small>{{ paymentLabel(reservation) }} · {{ reservation.pago?.metodo_pago || '—' }}</span>
+                <span v-if="reservation.pago?.fecha_pago"><small>Fecha de pago</small>{{ formatDateTime(reservation.pago.fecha_pago) }}</span>
+                <span v-if="reservation.pago?.referencia_transaccion"><small>Referencia</small>{{ reservation.pago.referencia_transaccion }}</span>
+                <strong>Total: {{ formatCurrency(reservation.monto_total) }}</strong>
               </div>
             </article>
           </div>

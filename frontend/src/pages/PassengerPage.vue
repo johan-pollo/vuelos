@@ -87,7 +87,7 @@ function proceed() {
     if (bookingStore.returnFlightId) {
       validatePassengers(bookingStore.returnPassengers, bookingStore.returnSeats, 'el viaje de regreso')
     }
-    router.push({ name: 'summary' })
+    router.push({ name: 'confirmation' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.message })
   }

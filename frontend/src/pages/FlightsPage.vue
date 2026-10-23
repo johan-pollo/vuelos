@@ -76,7 +76,7 @@ const filteredFlights = computed(() => {
   })
 })
 
-const itemsPerPage = 6
+const itemsPerPage = 18
 const currentPage = ref(1)
 const totalPages = computed(() => Math.ceil(filteredFlights.value.length / itemsPerPage))
 const pagedFlights = computed(() => {

@@ -22,6 +22,7 @@ export const useBookingStore = defineStore('booking', () => {
         nombre: passenger.nombre,
         apellido: passenger.apellido,
         documento_identidad: passenger.documento_identidad,
+        ...(passenger.telefono?.trim() ? { telefono: passenger.telefono.trim() } : {}),
       })),
     }
     if (returnFlightId.value) {
@@ -33,6 +34,7 @@ export const useBookingStore = defineStore('booking', () => {
           nombre: passenger.nombre,
           apellido: passenger.apellido,
           documento_identidad: passenger.documento_identidad,
+          ...(passenger.telefono?.trim() ? { telefono: passenger.telefono.trim() } : {}),
         })),
       }
     }

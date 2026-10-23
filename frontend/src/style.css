@@ -631,6 +631,23 @@ p {
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
+.reservations-shell .reservation-card.reservation-status-pendiente {
+  border-left-color: #e3ad00;
+}
+
+.reservations-shell .reservation-card.reservation-status-pagado {
+  border-left-color: #21a366;
+}
+
+.reservations-shell .reservation-card.reservation-status-cancelado {
+  border-left-color: var(--aero-red);
+}
+
+.reservations-shell .reservation-card.reservation-status-finalizado,
+.reservations-shell .reservation-card.reservation-status-expirada {
+  border-left-color: #858b93;
+}
+
 .destination-photo-wrap,
 .flight-destination-photo-wrap {
   position: relative;
@@ -740,10 +757,10 @@ p {
 .passenger-list-header,
 .passenger-list-row {
   display: grid;
-  grid-template-columns: 0.7fr 1.5fr 1.2fr 1fr 0.8fr;
+  grid-template-columns: 0.6fr 1.3fr 1fr 1fr 1.2fr 0.8fr;
   align-items: center;
   gap: 12px;
-  min-width: 680px;
+  min-width: 820px;
   padding: 12px 16px;
 }
 
@@ -1285,6 +1302,19 @@ p {
 }
 
 @media (max-width: 760px) {
+  .reservation-seat-map-layout {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .reservation-seat-key {
+    flex: 0 0 auto;
+    flex-direction: row;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
   .flight-filters {
     grid-template-columns: 1fr;
   }
@@ -1549,9 +1579,89 @@ p {
   margin: 12px auto;
 }
 
+.reservation-seat-map-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 100%;
+}
+
+.reservation-seat-map-layout .reservation-seat-map {
+  flex: 0 1 900px;
+  width: min(100%, 900px);
+  min-width: 0;
+  margin: 12px 0;
+}
+
+.reservation-seat-key {
+  flex: 0 0 145px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.reservation-seat-key .seat-class-swatch.seat-class-economica {
+  background: #dce4ec;
+}
+
+.reservation-seat-key .seat-class-swatch.seat-class-ejecutiva {
+  background: #6754d9;
+}
+
+.reservation-seat-key .seat-class-swatch.seat-class-primera {
+  background: #23b8bd;
+}
+
+.reservation-seat-key .seat-class-swatch.seat-occupied-swatch {
+  background: #d94352;
+}
+
+.reservation-seat-key .seat-class-swatch.seat-selected-swatch {
+  background: #22c781;
+}
+
+.reservation-seat-map .seat-btn.seat-class-economica {
+  background: #dce4ec !important;
+  color: #34465a !important;
+}
+
+.reservation-seat-map .seat-btn.seat-class-ejecutiva {
+  background: #6754d9 !important;
+  color: #fff !important;
+}
+
+.reservation-seat-map .seat-btn.seat-class-primera {
+  background: #23b8bd !important;
+  color: #063b43 !important;
+}
+
+.reservation-seat-map .seat-btn.seat-selected {
+  border: 3px solid #15945d;
+  background: #22c781 !important;
+  color: #073d29 !important;
+  opacity: 1 !important;
+}
+
+.reservation-seat-map .seat-btn.seat-occupied {
+  border-color: #c62f40;
+  background: #d94352 !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
 .reservation-seat-map .seat-btn {
   min-height: 42px !important;
   cursor: default;
+}
+
+.reservation-summary {
+  margin-bottom: 4px;
+}
+
+.reservation-passengers-expansion {
+  margin-top: 4px;
 }
 
 .admin-reservations-table tbody tr {
@@ -1686,6 +1796,40 @@ p {
   display: grid;
   gap: 12px;
   margin: 8px 0 16px;
+}
+
+.reservations-shell {
+  padding: clamp(24px, 3vw, 40px);
+}
+
+.reservations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.reservations-shell .reservation-card {
+  padding: 12px 16px;
+  border: 1px solid rgba(157, 24, 45, 0.24);
+  border-left: 5px solid var(--aero-red);
+  border-radius: 14px;
+  background: linear-gradient(115deg, #fff8f8 0%, #fff 36%);
+  box-shadow: 0 6px 16px rgba(22, 15, 27, 0.09), 0 1px 4px rgba(157, 24, 45, 0.07) !important;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.reservations-shell .reservation-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 9px 20px rgba(22, 15, 27, 0.12), 0 2px 6px rgba(157, 24, 45, 0.1) !important;
+}
+
+.reservations-shell .reservation-card .form-actions {
+  margin-top: 12px;
+}
+
+.reservation-card > .page-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--aero-line);
 }
 
 .reservation-leg {
@@ -2363,13 +2507,13 @@ p {
 }
 
 .user-reservations-dialog {
-  width: min(100%, 760px);
-  max-width: 92vw;
+  width: min(100%, 1040px);
+  max-width: 94vw;
   border-radius: 20px;
 }
 
 .user-reservations-content {
-  max-height: min(65vh, 620px);
+  max-height: min(78vh, 780px);
   overflow-y: auto;
 }
 
@@ -2379,24 +2523,54 @@ p {
 }
 
 .user-reservation-card {
-  padding: 14px;
+  padding: 18px;
   border: 1px solid var(--aero-line);
   border-radius: 14px;
   background: #fbfbfc;
 }
 
+.user-reservation-heading,
+.user-reservation-payment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-reservation-heading > div,
+.user-reservation-payment span {
+  display: grid;
+  gap: 4px;
+}
+
+.user-reservation-heading small {
+  color: var(--muted);
+}
+
+.user-reservation-leg {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--aero-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
 .user-reservation-route {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--aero-line);
 }
 
+.user-reservation-route .eyebrow {
+  margin: 0 8px 0 0;
+}
+
 .user-reservation-meta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: end;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   padding-top: 12px;
   font-size: 0.8rem;
@@ -2414,12 +2588,55 @@ p {
   font-size: 0.7rem;
 }
 
-.user-reservation-meta > strong {
-  justify-self: end;
+.user-reservation-ticket-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.user-reservation-ticket {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f7f7f9;
+  font-size: 0.8rem;
+}
+
+.user-reservation-ticket > * {
+  overflow-wrap: anywhere;
+}
+
+.user-reservation-payment {
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--aero-line);
+  font-size: 0.82rem;
+}
+
+.user-reservation-payment small {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.user-reservation-payment > strong {
   color: var(--aero-red);
 }
 
+@media (max-width: 760px) {
+  .user-reservation-ticket {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 1000px) {
+  .flight-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .admin-nav-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2529,12 +2746,6 @@ p {
 
   .user-reservation-meta {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (min-width: 761px) and (max-width: 1100px) {
-    .flight-list {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
   }
 
   .user-reservation-meta > strong {
