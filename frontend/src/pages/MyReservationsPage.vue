@@ -10,6 +10,8 @@ const router = useRouter()
 const bookingStore = useBookingStore()
 const reservations = ref([])
 const loading = ref(false)
+const loadError = ref('')
+const sessionExpired = ref(false)
 const savingId = ref('')
 const reservationSeatMaps = ref({})
 const loadingSeatMaps = ref({})
@@ -20,6 +22,8 @@ const visibleReservations = computed(() => reservations.value.filter((reservatio
 
 async function loadReservations() {
   loading.value = true
+  loadError.value = ''
+  sessionExpired.value = false
   try {
     const { data } = await api.get('/reservas?limite=50')
     data.forEach((reservation) => {
@@ -30,7 +34,8 @@ async function loadReservations() {
     })
     reservations.value = data
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar tus reservas.' })
+    loadError.value = error.friendlyMessage || 'No fue posible cargar tus reservas.'
+    sessionExpired.value = error.response?.status === 401
   } finally {
     loading.value = false
   }
@@ -224,6 +229,14 @@ function formatCurrency(value) {
       </div>
 
       <div v-if="loading" class="state-box"><q-spinner-dots color="primary" size="40px" /><p>Cargando reservas...</p></div>
+      <div v-else-if="loadError" class="state-box">
+        <q-banner rounded class="bg-red-1 text-negative q-mb-md">{{ loadError }}</q-banner>
+        <q-btn
+          color="primary"
+          :label="sessionExpired ? 'Iniciar sesión' : 'Reintentar'"
+          @click="sessionExpired ? router.push({ name: 'login' }) : loadReservations()"
+        />
+      </div>
       <div v-else-if="!reservations.length" class="state-box"><p>Aún no tienes reservas.</p><q-btn color="primary" label="Buscar vuelos" :to="{ name: 'flights' }" /></div>
       <div v-else class="reservations-list">
         <q-select

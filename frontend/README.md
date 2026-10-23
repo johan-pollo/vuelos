@@ -68,7 +68,9 @@ VITE_API_URL=http://localhost:3000/api
 
 No incluir secretos en `VITE_*`: se incorporan al código descargado por el navegador.
 
-En Vercel configura `VITE_API_URL` en **Settings → Environment Variables** con la URL pública del backend y el prefijo `/api`, por ejemplo `https://tu-backend.example.com/api`, y vuelve a desplegar. Vercel sirve la interfaz estática de este proyecto; también debes desplegar `backend/` en un servicio Node.js y configurar allí `MONGODB_URI`, `MONGODB_DB_NAME` y un `JWT_SECRET` persistente. MongoDB debe aceptar conexiones desde ese servicio. No subas secretos al repositorio ni los pongas en variables `VITE_*`, pues quedan expuestos en el navegador.
+En Vercel configura `VITE_API_URL` en **Settings → Environment Variables** con la URL pública del backend, por ejemplo `https://tu-backend.example.com`; el frontend añade `/api` automáticamente. Después vuelve a desplegar el frontend. Vercel sirve la interfaz estática de este proyecto; también debes desplegar `backend/` en un servicio Node.js y configurar allí `MONGODB_URI`, `MONGODB_DB_NAME` y un `JWT_SECRET` persistente. MongoDB debe aceptar conexiones desde ese servicio. No subas secretos al repositorio ni los pongas en variables `VITE_*`, pues quedan expuestos en el navegador.
+
+`vercel.json` configura el fallback de Vue Router a `index.html`, necesario para abrir o recargar rutas como `/mis-reservas` sin recibir un 404.
 
 ## Instalación, build y pruebas
 
