@@ -822,6 +822,24 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
 
     reserva.boletos = boletos.map(boleto => boleto._id);
     await reserva.save();
+
+    const [reservaPersistida, cantidadBoletosPersistidos] = await Promise.all([
+      Reserva.exists({
+        _id: reserva._id,
+        cliente: comprador._id,
+        codigo_reserva: reserva.codigo_reserva,
+      }),
+      Boleto.countDocuments({
+        reserva: reserva._id,
+        cliente: comprador._id,
+      }),
+    ]);
+    if (!reservaPersistida || cantidadBoletosPersistidos !== boletosPreparados.length) {
+      const error = new Error('No fue posible verificar que la reserva y sus boletos se guardaron en la base de datos.');
+      error.status = 503;
+      throw error;
+    }
+
     res.status(201).json({
       ...reserva.toJSON(),
       cliente: comprador,

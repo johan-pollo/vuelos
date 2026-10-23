@@ -50,7 +50,7 @@ Todos los endpoints llevan prefijo `/api`. Salvo salud, registro/login y consult
 | `POST /reservas/:id/pagar` | Simular pago propio o admin |
 | `PATCH /reservas/:id/pasajeros`, `POST /reservas/:id/cancelar` | Editar pasajeros o cancelar reserva propia |
 
-La reserva acepta ida y regreso opcional, con 1–10 asientos por trayecto. Respuestas comunes: `400` validación, `401` falta/expiración de sesión, `403` permisos, `404` no encontrado, `409` duplicado/conflicto y `503` MongoDB no disponible.
+La reserva acepta ida y regreso opcional, con 1–10 asientos por trayecto. `POST /reservas` solo responde éxito después de comprobar en MongoDB la reserva y todos sus boletos. Respuestas comunes: `400` validación, `401` falta/expiración de sesión, `403` permisos, `404` no encontrado, `409` duplicado/conflicto y `503` MongoDB no disponible o persistencia no verificada.
 
 ## Configuración segura
 
