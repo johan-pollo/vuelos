@@ -461,7 +461,17 @@ app.get('/api/ciudades-aeropuerto', exigirBaseDeDatos, autenticar, autorizar('AD
 });
 
 app.get('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
-  const vehiculos = await Vehiculo.find().sort({ placa_o_matricula: 1 });
+  const vehiculos = await Vehiculo.find().sort({ createdAt: -1 });
+  const todosLosViajes = await Viaje.find({
+    vehiculo: { $in: vehiculos.map(vehiculo => vehiculo._id) },
+  }).select('_id vehiculo');
+  const viajesPorId = new Map(todosLosViajes.map(viaje => [viaje._id.toString(), viaje]));
+  const viajesConBoletos = await Boleto.distinct('viaje', {
+    viaje: { $in: todosLosViajes.map(viaje => viaje._id) },
+  });
+  const navesConAsientosReservados = new Set(viajesConBoletos
+    .map(viajeId => viajesPorId.get(viajeId.toString())?.vehiculo.toString())
+    .filter(Boolean));
   const viajes = await Viaje.find({
     vehiculo: { $in: vehiculos.map(vehiculo => vehiculo._id) },
     estado: { $ne: 'CANCELADO' },
@@ -480,6 +490,7 @@ app.get('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), asy
   res.json(vehiculos.map(vehiculo => ({
     ...vehiculo.toJSON(),
     viajes_programados: viajesPorNave.get(vehiculo._id.toString()) || [],
+    tiene_asientos_reservados: navesConAsientosReservados.has(vehiculo._id.toString()),
   })));
 });
 
@@ -542,17 +553,8 @@ app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'),
   if (!vehiculoActual) return res.status(404).json({ error: 'La nave no existe.' });
 
   const viajesConAsientos = await Viaje.find({ vehiculo: vehiculoActual._id }).distinct('_id');
-  const boletosExistentes = await Boleto.find({ viaje: { $in: viajesConAsientos } })
-    .select('numero_asiento clase_asiento -_id');
-  const asientosNuevos = new Map((req.body.asientos || []).map(asiento => [
-    String(asiento.numero_asiento || '').toUpperCase(),
-    asiento.clase_asiento || 'ECONOMICA',
-  ]));
-  const modificaAsientoReservado = boletosExistentes.some(boleto =>
-    asientosNuevos.get(boleto.numero_asiento) !== (boleto.clase_asiento || 'ECONOMICA'),
-  );
-  if (modificaAsientoReservado) {
-    return res.status(409).json({ error: 'No puedes quitar ni cambiar la clase de asientos que ya tienen reservas.' });
+  if (await Boleto.exists({ viaje: { $in: viajesConAsientos } })) {
+    return res.status(409).json({ error: 'No puedes modificar una nave que tiene asientos reservados.' });
   }
 
   const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, req.body, {
