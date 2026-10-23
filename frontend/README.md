@@ -54,6 +54,8 @@ El texto «Únete a nuestro equipo» del footer no tiene acción enlazada actual
 
 ## API y configuración
 
+La URL local predeterminada solo se usa en desarrollo. En producción configura `VITE_API_URL`; si falta, la interfaz informa el error en lugar de llamar al localhost del visitante.
+
 Axios usa `/api` relativo a `VITE_API_URL`; valor predeterminado: `http://localhost:3000/api`. Adjunta JWT en `Authorization: Bearer ...`, traduce los errores de API a mensajes legibles y maneja sesión expirada. `authStore` conserva la sesión y `bookingStore` persiste datos seleccionados de compra con Pinia Persisted State.
 
 La interfaz usa, entre otros, `GET /viajes`, `GET /viajes/:id/asientos`, `POST /reservas`, `POST /reservas/:id/pagar`, `GET /reservas`, `PATCH /reservas/:id/pasajeros`, `POST /reservas/:id/cancelar` y las operaciones de administración documentadas en [Backend — API](../backend/README.md#api-principal).
@@ -65,6 +67,8 @@ VITE_API_URL=http://localhost:3000/api
 ```
 
 No incluir secretos en `VITE_*`: se incorporan al código descargado por el navegador.
+
+En Vercel configura `VITE_API_URL` en **Settings → Environment Variables** con la URL pública del backend y el prefijo `/api`, por ejemplo `https://tu-backend.example.com/api`, y vuelve a desplegar. Vercel sirve la interfaz estática de este proyecto; también debes desplegar `backend/` en un servicio Node.js y configurar allí `MONGODB_URI`, `MONGODB_DB_NAME` y un `JWT_SECRET` persistente. MongoDB debe aceptar conexiones desde ese servicio. No subas secretos al repositorio ni los pongas en variables `VITE_*`, pues quedan expuestos en el navegador.
 
 ## Instalación, build y pruebas
 

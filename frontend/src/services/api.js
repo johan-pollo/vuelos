@@ -1,8 +1,11 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/authStore'
 
+const apiBaseUrl = import.meta.env.VITE_API_URL
+  || (import.meta.env.DEV ? 'http://localhost:3000/api' : '')
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: apiBaseUrl,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -10,6 +13,12 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  if (!apiBaseUrl) {
+    const error = new Error('Falta configurar VITE_API_URL con la URL pública del backend.')
+    error.friendlyMessage = error.message
+    throw error
+  }
+
   const token = useAuthStore().token
 
   if (token) {
