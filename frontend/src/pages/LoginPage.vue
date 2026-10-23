@@ -26,6 +26,7 @@ const form = ref({
   telefono: '',
   password: '',
 })
+const emailRule = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) || 'Ingresa un correo electrónico válido.'
 
 function destinationAfterAuth() {
   const redirect = route.query.redirect
@@ -109,7 +110,7 @@ async function submit() {
           <q-select v-model="form.tipoDocumento" class="register-document-type" :options="documentTypes" label="Tipo de documento" outlined dense emit-value map-options />
           <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" outlined dense required minlength="5" maxlength="25" />
           <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense maxlength="15" autocomplete="tel" />
-          <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="email" outlined dense required maxlength="100" autocomplete="email" />
+          <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="[emailRule]" outlined dense required maxlength="100" autocomplete="email" />
           <q-input v-model="form.password" class="register-account-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required minlength="10" maxlength="72" autocomplete="new-password" hint="Usa entre 10 y 72 caracteres, con al menos una letra y un número.">
             <template #append>
               <q-btn
@@ -133,7 +134,7 @@ async function submit() {
         </div>
 
         <div v-if="mode === 'login'" class="form-grid">
-          <q-input v-model="form.email" label="Correo electrónico" type="email" outlined dense required maxlength="100" autocomplete="email" />
+          <q-input v-model="form.email" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="[emailRule]" outlined dense required maxlength="100" autocomplete="email" />
           <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required :minlength="mode === 'register' ? 10 : undefined" maxlength="72" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
             <template #append>
               <q-btn

@@ -69,16 +69,10 @@ onMounted(async () => {
 })
 
 async function createReservation() {
-  if (bookingStore.reservation?._id
-    && ['PENDIENTE', 'RECHAZADO'].includes(bookingStore.reservation.pago?.estado_pago)) {
-    router.push({ name: 'payment' })
-    return
-  }
-
   loading.value = true
   try {
     await bookingStore.confirmReservation()
-    Notify.create({ type: 'positive', message: 'Reserva creada. Continúa al pago para confirmar la compra.' })
+    Notify.create({ type: 'positive', message: 'Reserva guardada y verificada en Mis reservas. Continúa al pago para confirmar la compra.' })
     router.push({ name: 'payment' })
   } catch (error) {
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No se pudo confirmar la reserva.' })

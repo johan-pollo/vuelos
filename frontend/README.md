@@ -54,7 +54,7 @@ El texto «Únete a nuestro equipo» del footer no tiene acción enlazada actual
 
 ## API y configuración
 
-La URL local predeterminada solo se usa en desarrollo. En producción configura `VITE_API_URL`; si falta, la interfaz informa el error en lugar de llamar al localhost del visitante.
+La URL local predeterminada se usa en desarrollo y cuando la interfaz se sirve desde `localhost` (incluido `npm run preview`). En otros dominios de producción configura `VITE_API_URL`; si falta, la interfaz informa el error en lugar de llamar al localhost del visitante.
 
 Axios usa `/api` relativo a `VITE_API_URL`; valor predeterminado: `http://localhost:3000/api`. Adjunta JWT en `Authorization: Bearer ...`, traduce los errores de API a mensajes legibles y maneja sesión expirada. `authStore` conserva la sesión y `bookingStore` persiste datos seleccionados de compra con Pinia Persisted State.
 

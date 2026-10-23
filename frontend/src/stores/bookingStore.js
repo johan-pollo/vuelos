@@ -38,12 +38,54 @@ export const useBookingStore = defineStore('booking', () => {
         })),
       }
     }
-    const { data } = await api.post('/reservas', payload)
 
-    reservation.value = data
-    reservationCode.value = data.codigo_reserva || ''
+    if (reservation.value?._id) {
+      const { data: savedReservations } = await api.get('/reservas?limite=50')
+      const existingReservation = savedReservations.find(
+        (item) => item._id === reservation.value._id,
+      )
+      const savedSeats = (existingReservation?.detalle_asientos || [])
+        .filter((ticket) => String(ticket.viaje?._id || ticket.viaje) === selectedFlightId.value)
+        .map((ticket) => ticket.numero_asiento)
+        .sort()
+      const selectedSeatNumbers = [...selectedSeats.value].sort()
+      const savedReturnSeats = (existingReservation?.detalle_asientos || [])
+        .filter((ticket) => String(ticket.viaje?._id || ticket.viaje) === returnFlightId.value)
+        .map((ticket) => ticket.numero_asiento)
+        .sort()
+      const selectedReturnSeatNumbers = [...returnSeats.value].sort()
+      const isSameBooking = existingReservation
+        && String(existingReservation.viaje?._id || existingReservation.viaje) === selectedFlightId.value
+        && String(existingReservation.viaje_regreso?._id || existingReservation.viaje_regreso || '') === returnFlightId.value
+        && JSON.stringify(savedSeats) === JSON.stringify(selectedSeatNumbers)
+        && JSON.stringify(savedReturnSeats) === JSON.stringify(selectedReturnSeatNumbers)
+
+      if (isSameBooking && ['PENDIENTE', 'RECHAZADO'].includes(existingReservation.pago?.estado_pago)) {
+        reservation.value = existingReservation
+        reservationCode.value = existingReservation.codigo_reserva || ''
+        confirmMessage.value = 'Reserva creada correctamente.'
+        return existingReservation
+      }
+    }
+
+    const { data: createdReservation } = await api.post('/reservas', payload)
+
+    reservation.value = createdReservation
+    reservationCode.value = createdReservation.codigo_reserva || ''
+
+    const { data: savedReservations } = await api.get('/reservas?limite=50')
+    const savedReservation = savedReservations.find(
+      (item) => item._id === createdReservation._id,
+    )
+    if (!savedReservation) {
+      throw new Error(
+        'El servidor creó la reserva, pero no aparece en tu lista. Actualiza “Mis reservas” antes de volver a intentarlo.',
+      )
+    }
+
+    reservation.value = savedReservation
     confirmMessage.value = 'Reserva creada correctamente.'
-    return data
+    return savedReservation
   }
 
   async function payReservation(cardNumber) {
