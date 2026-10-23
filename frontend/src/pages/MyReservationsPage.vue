@@ -162,6 +162,16 @@ function formatTicket(ticket) {
 }
 
 async function savePassengers(reservation) {
+  const invalidPassenger = passengersFor(reservation).find(({ nombre, apellido, documento_identidad }) => (
+    nombre.trim().length < 2 || nombre.trim().length > 50
+    || apellido.trim().length < 2 || apellido.trim().length > 50
+    || !/^[A-Za-z0-9.-]{5,25}$/.test(documento_identidad.trim())
+  ))
+  if (invalidPassenger) {
+    Notify.create({ type: 'warning', message: 'Revisa que cada pasajero tenga nombres de 2 a 50 caracteres y un documento válido de 5 a 25 caracteres.' })
+    return
+  }
+
   savingId.value = reservation._id
   try {
     await api.patch(`/reservas/${reservation._id}/pasajeros`, {
@@ -303,7 +313,7 @@ function formatCurrency(value) {
                     <span><i class="seat-class-swatch seat-class-ejecutiva" />Ejecutiva</span>
                     <span><i class="seat-class-swatch seat-class-primera" />Primera clase</span>
                     <span><i class="seat-class-swatch seat-occupied-swatch" />Ocupado</span>
-                    <span><i class="seat-class-swatch seat-selected-swatch" />Tu asiento</span>
+                    <span><i class="seat-class-swatch seat-selected-swatch" />Seleccionado</span>
                   </div>
                 </div>
               </q-expansion-item>
@@ -353,7 +363,7 @@ function formatCurrency(value) {
                     <span><i class="seat-class-swatch seat-class-ejecutiva" />Ejecutiva</span>
                     <span><i class="seat-class-swatch seat-class-primera" />Primera clase</span>
                     <span><i class="seat-class-swatch seat-occupied-swatch" />Ocupado</span>
-                    <span><i class="seat-class-swatch seat-selected-swatch" />Tu asiento</span>
+                    <span><i class="seat-class-swatch seat-selected-swatch" />Seleccionado</span>
                   </div>
                 </div>
               </q-expansion-item>
@@ -376,9 +386,9 @@ function formatCurrency(value) {
           <q-expansion-item v-if="reservation.estado !== 'CANCELADA' && reservation.detalle_asientos?.length" class="reservation-passengers-expansion" icon="groups" label="Datos de pasajeros">
             <div class="form-grid q-pa-md">
               <template v-for="(ticket, index) in reservation.detalle_asientos" :key="ticket.id">
-                <q-input v-model="ticket.pasajero.nombre" :label="`Nombre · ${passengerLabel(ticket, reservation)}`" outlined dense minlength="2" maxlength="50" :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
-                <q-input v-model="ticket.pasajero.apellido" label="Apellido" outlined dense minlength="2" maxlength="50" :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
-                <q-input v-model="ticket.pasajero.documento_identidad" label="Documento" outlined dense minlength="5" maxlength="25" :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
+                <q-input v-model="ticket.pasajero.nombre" :label="`Nombre · ${passengerLabel(ticket, reservation)}`" outlined dense :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
+                <q-input v-model="ticket.pasajero.apellido" label="Apellido" outlined dense :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
+                <q-input v-model="ticket.pasajero.documento_identidad" label="Documento" outlined dense :readonly="isPaid(reservation) || !reservation.editando_pasajeros" />
               </template>
             </div>
             <div class="form-actions q-px-md q-pb-md">

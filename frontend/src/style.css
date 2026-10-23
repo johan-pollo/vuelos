@@ -1221,6 +1221,23 @@ p {
   justify-content: space-between;
 }
 
+.auth-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.auth-form-footer .auth-switch {
+  margin: 0;
+}
+
+.auth-form-footer .form-actions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+
 .summary-box,
 .detail-grid {
   display: grid;
@@ -1303,7 +1320,7 @@ p {
 
 @media (max-width: 760px) {
   .reservation-seat-map-layout {
-    align-items: flex-start;
+    align-items: center;
     flex-direction: column;
     gap: 4px;
   }
@@ -1311,7 +1328,7 @@ p {
   .reservation-seat-key {
     flex: 0 0 auto;
     flex-direction: row;
-    justify-content: flex-start;
+    justify-content: center;
     width: 100%;
   }
 
@@ -1523,6 +1540,8 @@ p {
 }
 
 .seat-panel .seat-grid-row {
+  width: min(100%, 760px);
+  margin-inline: auto;
   gap: clamp(10px, 4vw, 36px);
   padding: 7px 0;
 }
@@ -1581,25 +1600,27 @@ p {
 
 .reservation-seat-map-layout {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  flex-direction: column;
+  gap: 4px;
   max-width: 100%;
 }
 
 .reservation-seat-map-layout .reservation-seat-map {
-  flex: 0 1 900px;
+  flex: 0 0 auto;
   width: min(100%, 900px);
   min-width: 0;
-  margin: 12px 0;
+  margin: 12px auto;
 }
 
 .reservation-seat-key {
-  flex: 0 0 145px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 10px;
-  margin: 12px 0 0;
+  flex: 0 1 auto;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 20px;
+  width: 100%;
+  margin: 0 0 12px;
 }
 
 .reservation-seat-key .seat-class-swatch.seat-class-economica {
@@ -2112,6 +2133,7 @@ p {
   .seat-panel .seat-grid-row {
     grid-template-columns: 24px repeat(3, minmax(0, 1fr));
     gap: 5px;
+    width: 100%;
     min-width: 0;
   }
 
@@ -2138,6 +2160,19 @@ p {
   .form-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .auth-form-footer {
+    flex-wrap: wrap;
+  }
+
+  .auth-form-footer .auth-switch {
+    flex: 1 1 100%;
+  }
+
+  .auth-form-footer .form-actions {
+    margin-left: auto;
+    flex-direction: row;
   }
 
   .flights-toolbar {

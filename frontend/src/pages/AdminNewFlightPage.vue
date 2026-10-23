@@ -4,6 +4,7 @@ import { Notify } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useFlightStore } from '../stores/flightStore'
 import { formatDuration } from '../utils/formatters'
+import { integerRangeRule, requiredRule } from '../utils/validationRules'
 
 const router = useRouter()
 const flightStore = useFlightStore()
@@ -14,11 +15,13 @@ const form = ref({
   precio_base: '',
 })
 const loading = ref(false)
-const minimumDepartureDateTime = computed(() => {
-  const minimum = new Date()
-  minimum.setMinutes(minimum.getMinutes() + 1, 0, 0)
-  return toLocalDateTime(minimum)
-})
+const routeRules = [requiredRule('La ruta')]
+const vehicleRules = [requiredRule('La nave')]
+const departureRules = [
+  requiredRule('La fecha de salida'),
+  value => new Date(value) > new Date() || 'La salida debe ser posterior a la hora actual.',
+]
+const priceRules = [requiredRule('El precio'), integerRangeRule('El precio', 1, 100000000)]
 const selectedRoute = computed(() => flightStore.routeOptions.find((route) => route._id === form.value.ruta))
 const selectedVehicle = computed(() => flightStore.vehicleOptions.find((vehicle) => vehicle._id === form.value.vehiculo))
 const arrivalDateTime = computed(() => {
@@ -94,7 +97,7 @@ async function submit() {
         <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
       </div>
 
-      <q-form @submit.prevent="submit">
+      <q-form novalidate @submit.prevent="submit">
         <section class="vehicle-form-section">
           <div class="vehicle-step-heading">
             <span class="vehicle-step-number">1</span>
@@ -104,8 +107,8 @@ async function submit() {
             </div>
           </div>
           <div class="form-grid">
-            <q-select v-model="form.ruta" :options="flightStore.routeOptions.map((route) => ({ label: `${route.origen} → ${route.destino}`, value: route._id }))" label="Ruta" emit-value map-options outlined dense required />
-            <q-select v-model="form.vehiculo" :options="flightStore.vehicleOptions.map((vehicle) => ({ label: `${vehicle.placa_o_matricula} · ${vehicle.capacidad_asientos} asientos`, value: vehicle._id }))" label="Nave" emit-value map-options outlined dense required />
+            <q-select v-model="form.ruta" :options="flightStore.routeOptions.map((route) => ({ label: `${route.origen} → ${route.destino}`, value: route._id }))" label="Ruta" emit-value map-options :rules="routeRules" outlined dense />
+            <q-select v-model="form.vehiculo" :options="flightStore.vehicleOptions.map((vehicle) => ({ label: `${vehicle.placa_o_matricula} · ${vehicle.capacidad_asientos} asientos`, value: vehicle._id }))" label="Nave" emit-value map-options :rules="vehicleRules" outlined dense />
           </div>
           <p v-if="selectedRoute" class="text-caption text-grey-7 q-mt-sm">Duración estimada de la ruta: {{ formatDuration(selectedRoute.duracion_estimada_min) }}.</p>
           <p v-if="selectedVehicle" class="text-caption text-grey-7 q-mt-sm">Capacidad de la nave: {{ selectedVehicle.capacidad_asientos }} asientos.</p>
@@ -120,9 +123,9 @@ async function submit() {
             </div>
           </div>
           <div class="form-grid">
-            <q-input v-model="form.fecha_hora_salida" type="datetime-local" label="Salida" :min="minimumDepartureDateTime" outlined dense required />
+            <q-input v-model="form.fecha_hora_salida" type="datetime-local" label="Salida" :rules="departureRules" outlined dense />
             <q-input :model-value="arrivalDateTime" type="datetime-local" label="Llegada calculada" outlined dense readonly />
-            <q-input v-model.number="form.precio_base" type="number" min="1" max="100000000" step="1" inputmode="numeric" label="Precio base" prefix="$" outlined dense required />
+            <q-input v-model.number="form.precio_base" type="number" step="1" inputmode="numeric" label="Precio base" prefix="$" :rules="priceRules" outlined dense />
           </div>
         </section>
 

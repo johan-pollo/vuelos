@@ -4,6 +4,7 @@ import { Notify } from 'quasar'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
 import { useBookingStore } from '../stores/bookingStore'
+import { lengthRule, requiredRule } from '../utils/validationRules'
 
 const router = useRouter()
 const bookingStore = useBookingStore()
@@ -20,6 +21,12 @@ const form = reactive({
   apellido: '',
   documento_identidad: '',
 })
+const customerRules = [requiredRule('El cliente')]
+const flightRules = [requiredRule('El vuelo')]
+const seatRules = [requiredRule('El asiento')]
+const passengerNameRules = [requiredRule('El nombre'), lengthRule('El nombre', 2, 50)]
+const passengerSurnameRules = [requiredRule('El apellido'), lengthRule('El apellido', 2, 50)]
+const passengerDocumentRules = [requiredRule('El documento'), lengthRule('El documento', 5, 25)]
 
 const availableFlights = computed(() => flights.value.filter((flight) => (
   flight.estado === 'PROGRAMADO' && new Date(flight.fecha_hora_salida) > new Date()
@@ -127,7 +134,7 @@ async function createReservation() {
       </q-banner>
 
       <div v-if="loading" class="state-box"><q-spinner-dots color="primary" size="40px" /><p>Cargando opciones...</p></div>
-      <q-form v-else @submit.prevent="createReservation">
+      <q-form v-else novalidate @submit.prevent="createReservation">
         <div class="form-grid">
           <q-select
             v-model="form.cliente"
@@ -140,7 +147,7 @@ async function createReservation() {
             map-options
             outlined
             dense
-            required
+            :rules="customerRules"
             @update:model-value="selectCustomer"
           />
           <q-select
@@ -154,7 +161,7 @@ async function createReservation() {
             map-options
             outlined
             dense
-            required
+            :rules="flightRules"
             @update:model-value="selectFlight"
           />
           <q-select
@@ -165,16 +172,16 @@ async function createReservation() {
             map-options
             outlined
             dense
-            required
+            :rules="seatRules"
             :disable="!form.viaje"
           />
         </div>
 
         <h3 class="text-h6 q-mt-lg">Datos del pasajero</h3>
         <div class="form-grid">
-          <q-input v-model="form.nombre" label="Nombre" outlined dense required minlength="2" maxlength="50" />
-          <q-input v-model="form.apellido" label="Apellido" outlined dense required minlength="2" maxlength="50" />
-          <q-input v-model="form.documento_identidad" label="Documento" outlined dense required minlength="5" maxlength="25" />
+          <q-input v-model="form.nombre" label="Nombre" :rules="passengerNameRules" outlined dense />
+          <q-input v-model="form.apellido" label="Apellido" :rules="passengerSurnameRules" outlined dense />
+          <q-input v-model="form.documento_identidad" label="Documento" :rules="passengerDocumentRules" outlined dense />
         </div>
 
         <div class="form-actions">

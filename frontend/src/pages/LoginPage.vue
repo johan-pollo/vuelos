@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Dialog, Notify } from 'quasar'
 import { useAuthStore } from '../stores/authStore'
+import { lengthRule, requiredRule } from '../utils/validationRules'
 
 const router = useRouter()
 const route = useRoute()
@@ -27,6 +28,15 @@ const form = ref({
   password: '',
 })
 const emailRule = value => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) || 'Ingresa un correo electrónico válido.'
+const nameRules = [requiredRule('El nombre'), lengthRule('El nombre', 3, 40)]
+const surnameRules = [requiredRule('El apellido'), lengthRule('El apellido', 3, 40)]
+const documentRules = [requiredRule('El documento'), lengthRule('El documento', 5, 25)]
+const emailRules = [requiredRule('El correo'), lengthRule('El correo', 1, 100), emailRule]
+const passwordRules = [
+  requiredRule('La contraseña'),
+  lengthRule('La contraseña', 10, 72),
+  value => /[A-Za-z]/.test(value) && /\d/.test(value) || 'Incluye al menos una letra y un número.',
+]
 
 function destinationAfterAuth() {
   const redirect = route.query.redirect
@@ -103,15 +113,15 @@ async function submit() {
         </div>
       </div>
 
-      <q-form @submit.prevent="submit">
+      <q-form novalidate @submit.prevent="submit">
         <div v-if="mode === 'register'" class="form-grid register-grid">
-          <q-input v-model="form.nombre" class="register-name-field" label="Nombres" outlined dense required minlength="3" maxlength="40" autocomplete="given-name" />
-          <q-input v-model="form.apellido" class="register-name-field" label="Apellidos" outlined dense required minlength="3" maxlength="40" autocomplete="family-name" />
+          <q-input v-model="form.nombre" class="register-name-field" label="Nombres" :rules="nameRules" outlined dense autocomplete="given-name" />
+          <q-input v-model="form.apellido" class="register-name-field" label="Apellidos" :rules="surnameRules" outlined dense autocomplete="family-name" />
           <q-select v-model="form.tipoDocumento" class="register-document-type" :options="documentTypes" label="Tipo de documento" outlined dense emit-value map-options />
-          <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" outlined dense required minlength="5" maxlength="25" />
-          <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense maxlength="15" autocomplete="tel" />
-          <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="[emailRule]" outlined dense required maxlength="100" autocomplete="email" />
-          <q-input v-model="form.password" class="register-account-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required minlength="10" maxlength="72" autocomplete="new-password" hint="Usa entre 10 y 72 caracteres, con al menos una letra y un número.">
+          <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" :rules="documentRules" outlined dense />
+          <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense autocomplete="tel" />
+          <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" outlined dense autocomplete="email" />
+          <q-input v-model="form.password" class="register-account-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="passwordRules" outlined dense autocomplete="new-password" hint="Usa entre 10 y 72 caracteres, con al menos una letra y un número.">
             <template #append>
               <q-btn
                 flat
@@ -134,8 +144,8 @@ async function submit() {
         </div>
 
         <div v-if="mode === 'login'" class="form-grid">
-          <q-input v-model="form.email" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="[emailRule]" outlined dense required maxlength="100" autocomplete="email" />
-          <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" outlined dense required :minlength="mode === 'register' ? 10 : undefined" maxlength="72" :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
+          <q-input v-model="form.email" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" outlined dense autocomplete="email" />
+          <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="mode === 'register' ? passwordRules : [requiredRule('La contraseña'), lengthRule('La contraseña', 1, 72)]" outlined dense :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
             <template #append>
               <q-btn
                 flat
@@ -157,19 +167,20 @@ async function submit() {
           </q-input>
         </div>
 
-        <div class="form-actions">
-          <q-btn type="submit" color="primary" :loading="loading" :label="mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'" />
+        <div class="auth-form-footer">
+          <p v-if="mode === 'login'" class="auth-switch">
+            ¿Aún no tienes cuenta?
+            <q-btn type="button" flat dense color="primary" label="Regístrate gratis" @click="mode = 'register'" />
+          </p>
+          <p v-else class="auth-switch">
+            ¿Ya tienes cuenta?
+            <q-btn type="button" flat dense color="primary" label="Inicia sesión" @click="mode = 'login'" />
+          </p>
+          <div class="form-actions">
+            <q-btn type="submit" color="primary" :loading="loading" :label="mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'" />
+          </div>
         </div>
       </q-form>
-
-      <p v-if="mode === 'login'" class="auth-switch">
-        ¿Aún no tienes cuenta?
-        <q-btn flat dense color="primary" label="Regístrate gratis" @click="mode = 'register'" />
-      </p>
-      <p v-else class="auth-switch">
-        ¿Ya tienes cuenta?
-        <q-btn flat dense color="primary" label="Inicia sesión" @click="mode = 'login'" />
-      </p>
     </div>
   </q-page>
 </template>

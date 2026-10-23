@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useBookingStore } from '../stores/bookingStore'
 import { useAuthStore } from '../stores/authStore'
+import { lengthRule, requiredRule } from '../utils/validationRules'
 
 const router = useRouter()
 const route = useRoute()
@@ -46,7 +47,7 @@ function updateExpiry(value) {
 }
 
 function validateExpiry(value) {
-  const match = value.match(/^(\d{2})\/(\d{2})$/)
+  const match = String(value || '').match(/^(\d{2})\/(\d{2})$/)
   if (!match) return false
 
   const month = Number(match[1])
@@ -58,6 +59,13 @@ function validateExpiry(value) {
   const currentMonth = now.getMonth() + 1
   return year > currentYear || (year === currentYear && month >= currentMonth)
 }
+
+const cardRules = [requiredRule('El número de tarjeta'), lengthRule('El número de tarjeta', 16, 16)]
+const expiryRules = [
+  requiredRule('El vencimiento'),
+  value => validateExpiry(value) || 'Ingresa una fecha vigente en formato MM/AA.',
+]
+const securityCodeRules = [requiredRule('El CVC'), lengthRule('El CVC', 3, 3)]
 
 onMounted(async () => {
   if (!reservation.value?._id && bookingStore.reservationCode) {
@@ -169,17 +177,16 @@ async function submitPayment() {
         </div>
       </div>
 
-      <form class="payment-form" @submit.prevent="submitPayment">
+      <q-form class="payment-form" novalidate @submit.prevent="submitPayment">
         <q-input
           :model-value="cardNumber"
           label="Número de tarjeta"
           placeholder="16 dígitos"
+          :rules="cardRules"
           outlined
-          required
           type="tel"
           inputmode="numeric"
           autocomplete="cc-number"
-          maxlength="16"
           counter
           @update:model-value="updateCardNumber"
         />
@@ -189,24 +196,22 @@ async function submitPayment() {
             :model-value="expiryDate"
             label="Vencimiento (MM/AA)"
             placeholder="MM/AA"
+            :rules="expiryRules"
             outlined
-            required
             type="text"
             inputmode="numeric"
             autocomplete="cc-exp"
-            maxlength="5"
             @update:model-value="updateExpiry"
           />
           <q-input
             :model-value="securityCode"
             label="CVC"
             placeholder="3 dígitos"
+            :rules="securityCodeRules"
             outlined
-            required
             type="password"
             inputmode="numeric"
             autocomplete="cc-csc"
-            maxlength="3"
             @update:model-value="updateSecurityCode"
           />
         </div>
@@ -226,7 +231,7 @@ async function submitPayment() {
             label="Pagar ahora"
           />
         </div>
-      </form>
+      </q-form>
     </div>
   </q-page>
 </template>

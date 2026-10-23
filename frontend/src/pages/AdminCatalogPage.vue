@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import api from '../services/api'
 import { formatDuration } from '../utils/formatters'
+import { integerRangeRule, lengthRule, optionalIntegerRangeRule, requiredRule } from '../utils/validationRules'
 
 const props = defineProps({
   section: { type: String, required: true },
@@ -55,6 +56,12 @@ const vehicleFilters = reactive({ matricula: '', tiposAsiento: '' })
 const seatCount = computed(() => ['ECONOMICA', 'EJECUTIVA', 'PRIMERA']
   .reduce((total, seatClass) => total + (Number(vehicleForm[seatClass]) || 0), 0))
 const vehicleSeatLimit = computed(() => vehicleTypes.find(type => type.value === vehicleForm.tipo_vehiculo)?.max || 50)
+const routeDurationRules = [requiredRule('La duración'), integerRangeRule('La duración', 1, 100000)]
+const vehiclePlateRules = [requiredRule('La matrícula'), lengthRule('La matrícula', 4, 20)]
+const vehicleTypeRules = [requiredRule('El tipo de avión')]
+const seatCountRules = [
+  value => optionalIntegerRangeRule('La cantidad de asientos', 0, vehicleSeatLimit.value)(value),
+]
 const filteredVehicles = computed(() => vehicles.value.filter((vehicle) => {
   const plateMatches = vehicle.placa_o_matricula.toLocaleLowerCase()
     .includes(vehicleFilters.matricula.trim().toLocaleLowerCase())
@@ -383,11 +390,11 @@ function confirmDeleteCustomer(customer) {
       <template v-else>
         <section v-if="props.section === 'rutas'">
           <h3 class="text-h6">{{ editingRouteId ? 'Editar ruta' : 'Crear ruta' }}</h3>
-          <q-form @submit.prevent="saveRoute">
+          <q-form novalidate @submit.prevent="saveRoute">
             <div class="form-grid">
               <q-select v-model="routeForm.origen" :options="cities" label="Ciudad de origen" outlined dense clearable use-input />
               <q-select v-model="routeForm.destino" :options="cities" label="Ciudad de destino" outlined dense clearable use-input />
-              <q-input v-model.number="routeForm.duracion_estimada_min" type="number" min="1" max="100000" step="1" inputmode="numeric" label="Duración estimada (minutos)" outlined dense required />
+              <q-input v-model.number="routeForm.duracion_estimada_min" type="number" step="1" inputmode="numeric" label="Duración estimada (minutos)" :rules="routeDurationRules" outlined dense />
             </div>
             <p class="text-caption text-grey-7">Elige ambas ciudades del catálogo y asegúrate de que sean diferentes.</p>
             <div class="form-actions">
@@ -413,7 +420,7 @@ function confirmDeleteCustomer(customer) {
         </section>
 
         <section v-else-if="props.section === 'naves'">
-          <q-form class="admin-form-card" @submit.prevent="saveVehicle">
+          <q-form class="admin-form-card" novalidate @submit.prevent="saveVehicle">
             <section class="vehicle-form-section">
               <div class="vehicle-step-heading">
                 <span class="vehicle-step-number">1</span>
@@ -424,8 +431,8 @@ function confirmDeleteCustomer(customer) {
                 <q-btn v-if="editingVehicleId" flat dense color="grey-7" label="Cancelar edición" @click="clearVehicleForm" />
               </div>
               <div class="form-grid vehicle-identity-grid">
-                <q-input v-model="vehicleForm.placa_o_matricula" label="Placa o matrícula" outlined dense required minlength="4" maxlength="20" />
-                <q-select v-model="vehicleForm.tipo_vehiculo" :options="vehicleTypes" emit-value map-options label="Tipo de avión" outlined dense required />
+                <q-input v-model="vehicleForm.placa_o_matricula" label="Placa o matrícula" :rules="vehiclePlateRules" outlined dense />
+                <q-select v-model="vehicleForm.tipo_vehiculo" :options="vehicleTypes" emit-value map-options label="Tipo de avión" :rules="vehicleTypeRules" outlined dense />
               </div>
             </section>
 
@@ -439,9 +446,9 @@ function confirmDeleteCustomer(customer) {
                 <span class="vehicle-seat-total">{{ seatCount }} / {{ vehicleSeatLimit }} asientos</span>
               </div>
               <div class="vehicle-seat-count-grid">
-                <q-input v-model.number="vehicleForm.ECONOMICA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Económica" outlined dense @focus="clearZeroSeatCount('ECONOMICA')" @blur="restoreEmptySeatCount('ECONOMICA')" />
-                <q-input v-model.number="vehicleForm.PRIMERA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Primera clase" outlined dense @focus="clearZeroSeatCount('PRIMERA')" @blur="restoreEmptySeatCount('PRIMERA')" />
-                <q-input v-model.number="vehicleForm.EJECUTIVA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Ejecutiva" outlined dense @focus="clearZeroSeatCount('EJECUTIVA')" @blur="restoreEmptySeatCount('EJECUTIVA')" />
+                <q-input v-model.number="vehicleForm.ECONOMICA" type="number" step="1" inputmode="numeric" label="Económica" :rules="seatCountRules" outlined dense @focus="clearZeroSeatCount('ECONOMICA')" @blur="restoreEmptySeatCount('ECONOMICA')" />
+                <q-input v-model.number="vehicleForm.PRIMERA" type="number" step="1" inputmode="numeric" label="Primera clase" :rules="seatCountRules" outlined dense @focus="clearZeroSeatCount('PRIMERA')" @blur="restoreEmptySeatCount('PRIMERA')" />
+                <q-input v-model.number="vehicleForm.EJECUTIVA" type="number" step="1" inputmode="numeric" label="Ejecutiva" :rules="seatCountRules" outlined dense @focus="clearZeroSeatCount('EJECUTIVA')" @blur="restoreEmptySeatCount('EJECUTIVA')" />
               </div>
             </section>
             <p class="text-caption text-grey-7 q-mt-md">La capacidad se calcula automáticamente según el tipo de avión.</p>

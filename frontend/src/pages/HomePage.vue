@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFlightStore } from '../stores/flightStore'
 import { destinationPhoto } from '../utils/destinationPhotos'
+import { integerRangeRule } from '../utils/validationRules'
 
 const router = useRouter()
 const flightStore = useFlightStore()
@@ -19,6 +20,10 @@ const filters = ref({
 const initialLocations = ['Bogotá', 'Cali', 'Medellín', 'Yopal']
 const originOptions = ref(initialLocations)
 const destinationOptions = ref(initialLocations)
+const passengerCountRules = [integerRangeRule('La cantidad de pasajeros', 1, 10)]
+const returnDateRules = [
+  value => !filters.value.fecha || !value || value >= filters.value.fecha || 'La fecha de regreso no puede ser anterior a la salida.',
+]
 
 onMounted(() => {
   flightStore.fetchFlights()
@@ -122,7 +127,7 @@ function searchFlights() {
         </div>
 
         <q-card class="search-card shadow-3">
-          <q-form @submit.prevent="searchFlights">
+          <q-form novalidate @submit.prevent="searchFlights">
             <q-option-group
               v-model="filters.tipoViaje"
               :options="[
@@ -138,8 +143,8 @@ function searchFlights() {
               <q-select v-model="filters.origen" :options="originOptions" label="Origen" outlined dense clearable use-input input-debounce="0" @filter="filterOrigins" />
               <q-select v-model="filters.destino" :options="destinationOptions" label="Destino" outlined dense clearable use-input input-debounce="0" @filter="filterDestinations" />
               <q-input v-model="filters.fecha" label="Fecha de salida" type="date" outlined dense />
-              <q-input v-if="filters.tipoViaje === 'IDA_VUELTA'" v-model="filters.fechaRegreso" label="Fecha de regreso" type="date" :min="filters.fecha || undefined" outlined dense />
-              <q-input v-model.number="filters.pasajeros" label="Pasajeros" type="number" min="1" max="10" outlined dense />
+              <q-input v-if="filters.tipoViaje === 'IDA_VUELTA'" v-model="filters.fechaRegreso" label="Fecha de regreso" type="date" :rules="returnDateRules" outlined dense />
+              <q-input v-model.number="filters.pasajeros" label="Pasajeros" type="number" :rules="passengerCountRules" outlined dense />
             </div>
             <div class="search-actions">
               <q-btn type="submit" color="primary" label="Buscar vuelo" class="search-submit" />

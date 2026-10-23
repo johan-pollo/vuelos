@@ -109,10 +109,10 @@ function proceed() {
         <div v-for="(passenger, index) in bookingStore.passengers" :key="`ida-${bookingStore.selectedSeats[index]}`" class="q-mb-lg">
           <p class="text-subtitle2 q-mb-sm">{{ seatDescription(currentFlight, bookingStore.selectedSeats[index]) }}</p>
           <div class="form-grid">
-            <q-input v-model="passenger.nombre" label="Nombre" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="passenger.apellido" label="Apellido" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="passenger.documento_identidad" label="Documento" outlined dense required minlength="5" maxlength="25" />
-            <q-input v-model="passenger.telefono" label="Teléfono (opcional)" type="tel" outlined dense maxlength="20" autocomplete="tel" />
+            <q-input v-model="passenger.nombre" label="Nombre" outlined dense />
+            <q-input v-model="passenger.apellido" label="Apellido" outlined dense />
+            <q-input v-model="passenger.documento_identidad" label="Documento" outlined dense />
+            <q-input v-model="passenger.telefono" label="Teléfono (opcional)" type="tel" outlined dense autocomplete="tel" />
           </div>
         </div>
       </section>
@@ -122,10 +122,10 @@ function proceed() {
         <div v-for="(passenger, index) in bookingStore.returnPassengers" :key="`regreso-${bookingStore.returnSeats[index]}`" class="q-mb-lg">
           <p class="text-subtitle2 q-mb-sm">{{ seatDescription(returnFlight, bookingStore.returnSeats[index]) }}</p>
           <div class="form-grid">
-            <q-input v-model="passenger.nombre" label="Nombre" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="passenger.apellido" label="Apellido" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="passenger.documento_identidad" label="Documento" outlined dense required minlength="5" maxlength="25" />
-            <q-input v-model="passenger.telefono" label="Teléfono (opcional)" type="tel" outlined dense maxlength="20" autocomplete="tel" />
+            <q-input v-model="passenger.nombre" label="Nombre" outlined dense />
+            <q-input v-model="passenger.apellido" label="Apellido" outlined dense />
+            <q-input v-model="passenger.documento_identidad" label="Documento" outlined dense />
+            <q-input v-model="passenger.telefono" label="Teléfono (opcional)" type="tel" outlined dense autocomplete="tel" />
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
+import { lengthRule, requiredRule } from '../utils/validationRules'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -18,6 +19,22 @@ const profile = reactive({
   telefono: authStore.user?.cliente?.telefono || '',
 })
 const password = reactive({ actual: '', nueva: '', confirmar: '' })
+const usernameRules = [
+  requiredRule('El usuario'),
+  value => /^[a-z0-9_.-]{3,30}$/i.test(String(value || '').trim()) || 'Usa entre 3 y 30 letras, números, punto, guion o guion bajo.',
+]
+const personNameRules = [requiredRule('Este campo'), lengthRule('Este campo', 2, 50)]
+const currentPasswordRules = [requiredRule('La contraseña actual'), lengthRule('La contraseña actual', 1, 72)]
+const newPasswordRules = [
+  requiredRule('La nueva contraseña'),
+  lengthRule('La nueva contraseña', 10, 72),
+  value => /[A-Za-z]/.test(value) && /\d/.test(value) || 'Incluye al menos una letra y un número.',
+]
+const confirmPasswordRules = [
+  requiredRule('La confirmación'),
+  lengthRule('La confirmación', 10, 72),
+  value => value === password.nueva || 'Las contraseñas no coinciden.',
+]
 
 onMounted(async () => {
   try {
@@ -123,14 +140,14 @@ function confirmDeleteAccount() {
         <q-btn v-if="!authStore.isAdmin" outline label="Mis reservas" :to="{ name: 'my-reservations' }" />
       </div>
 
-      <q-form @submit.prevent="saveProfile">
+      <q-form novalidate @submit.prevent="saveProfile">
         <div class="form-grid">
           <q-input :model-value="authStore.user?.email || ''" label="Correo" type="email" outlined dense readonly />
-          <q-input v-if="authStore.isAdmin" v-model="profile.username" label="Nombre de usuario" outlined dense required minlength="3" maxlength="30" />
+          <q-input v-if="authStore.isAdmin" v-model="profile.username" label="Nombre de usuario" :rules="usernameRules" outlined dense />
           <template v-if="!authStore.isAdmin">
-            <q-input v-model="profile.nombre" label="Nombre" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="profile.apellido" label="Apellido" outlined dense required minlength="2" maxlength="50" />
-            <q-input v-model="profile.telefono" label="Teléfono" type="tel" mask="###############" outlined dense maxlength="15" />
+            <q-input v-model="profile.nombre" label="Nombre" :rules="personNameRules" outlined dense />
+            <q-input v-model="profile.apellido" label="Apellido" :rules="personNameRules" outlined dense />
+            <q-input v-model="profile.telefono" label="Teléfono" type="tel" mask="###############" outlined dense />
           </template>
         </div>
         <div class="form-actions">
@@ -140,19 +157,19 @@ function confirmDeleteAccount() {
 
       <q-separator class="q-my-lg" />
       <h3 class="text-h6">Cambiar contraseña</h3>
-      <q-form @submit.prevent="changePassword">
+      <q-form novalidate @submit.prevent="changePassword">
         <div class="form-grid">
-          <q-input v-model="password.actual" label="Contraseña actual" :type="showCurrentPassword ? 'text' : 'password'" autocomplete="current-password" outlined dense required maxlength="72">
+          <q-input v-model="password.actual" label="Contraseña actual" :type="showCurrentPassword ? 'text' : 'password'" autocomplete="current-password" :rules="currentPasswordRules" outlined dense>
             <template #append>
               <q-icon :name="showCurrentPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showCurrentPassword = !showCurrentPassword" />
             </template>
           </q-input>
-          <q-input v-model="password.nueva" label="Nueva contraseña" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" outlined dense required minlength="10" maxlength="72" hint="Entre 10 y 72 caracteres, con al menos una letra y un número.">
+          <q-input v-model="password.nueva" label="Nueva contraseña" :type="showNewPassword ? 'text' : 'password'" autocomplete="new-password" :rules="newPasswordRules" outlined dense hint="Entre 10 y 72 caracteres, con al menos una letra y un número.">
             <template #append>
               <q-icon :name="showNewPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showNewPassword = !showNewPassword" />
             </template>
           </q-input>
-          <q-input v-model="password.confirmar" label="Confirmar nueva contraseña" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" outlined dense required minlength="10" maxlength="72">
+          <q-input v-model="password.confirmar" label="Confirmar nueva contraseña" :type="showConfirmPassword ? 'text' : 'password'" autocomplete="new-password" :rules="confirmPasswordRules" outlined dense>
             <template #append>
               <q-icon :name="showConfirmPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showConfirmPassword = !showConfirmPassword" />
             </template>
