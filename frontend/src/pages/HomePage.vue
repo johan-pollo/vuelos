@@ -163,8 +163,7 @@ function searchFlights() {
             <a class="photo-credit" :href="selectDestination(flight.ruta?.destino).source" target="_blank" rel="noopener noreferrer">{{ selectDestination(flight.ruta?.destino).credit }}</a>
           </div>
           <div class="destination-card-content">
-            <div class="route-pill">{{ flight.ruta?.origen }} → {{ flight.ruta?.destino }}</div>
-            <h3>{{ flight.ruta?.origen }} - {{ flight.ruta?.destino }}</h3>
+            <h3>{{ flight.ruta?.origen }} → {{ flight.ruta?.destino }}</h3>
             <p>{{ formatDateTime(flight.fecha_hora_salida) }}</p>
             <div class="price-row">
               <span>Desde</span>

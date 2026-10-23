@@ -1,14 +1,17 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, reactive, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import api from '../services/api'
 import { formatDuration } from '../utils/formatters'
 
-const route = useRoute()
-const catalogTabs = ['rutas', 'naves', 'clientes']
-const tabForQuery = (value) => typeof value === 'string' && catalogTabs.includes(value) ? value : 'rutas'
-const tab = ref(tabForQuery(route.query.tab))
+const props = defineProps({
+  section: { type: String, required: true },
+})
+const sectionTitle = computed(() => ({
+  rutas: 'Rutas',
+  naves: 'Naves y asientos',
+  clientes: 'Clientes',
+}[props.section]))
 const loading = ref(false)
 const saving = ref(false)
 const cities = ref([])
@@ -22,32 +25,56 @@ const selectedCustomer = ref(null)
 const customerReservations = ref([])
 const loadingReservations = ref(false)
 const routeForm = reactive({ origen: '', destino: '', duracion_estimada_min: '' })
+const routeFilters = reactive({ origen: '', destino: '' })
+const customerFilters = reactive({ nombre: '', email: '', documento: '' })
+const filteredRoutes = computed(() => routes.value.filter((item) => (
+  (!routeFilters.origen || item.origen === routeFilters.origen)
+  && (!routeFilters.destino || item.destino === routeFilters.destino)
+)))
+const filteredCustomers = computed(() => customers.value.filter((customer) => {
+  const name = `${customer.cliente?.nombre || ''} ${customer.cliente?.apellido || ''}`.toLocaleLowerCase()
+  const email = (customer.email || '').toLocaleLowerCase()
+  const document = (customer.cliente?.documento_identidad || '').toLocaleLowerCase()
+  return name.includes(customerFilters.nombre.trim().toLocaleLowerCase())
+    && email.includes(customerFilters.email.trim().toLocaleLowerCase())
+    && document.includes(customerFilters.documento.trim().toLocaleLowerCase())
+}))
 const vehicleForm = reactive({
   placa_o_matricula: '',
+  tipo_vehiculo: 'REGIONAL',
   ECONOMICA: '',
   EJECUTIVA: '',
   PRIMERA: '',
 })
+const vehicleTypes = [
+  { label: 'Regional · máximo 50 asientos', value: 'REGIONAL', max: 50 },
+  { label: 'Mediano · máximo 100 asientos', value: 'MEDIANO', max: 100 },
+  { label: 'Grande · máximo 150 asientos', value: 'GRANDE', max: 150 },
+]
+const vehicleFilters = reactive({ matricula: '', tiposAsiento: '' })
 const seatCount = computed(() => ['ECONOMICA', 'EJECUTIVA', 'PRIMERA']
   .reduce((total, seatClass) => total + (Number(vehicleForm[seatClass]) || 0), 0))
-
-watch(() => route.query.tab, (value) => {
-  tab.value = tabForQuery(value)
-})
+const vehicleSeatLimit = computed(() => vehicleTypes.find(type => type.value === vehicleForm.tipo_vehiculo)?.max || 50)
+const filteredVehicles = computed(() => vehicles.value.filter((vehicle) => {
+  const plateMatches = vehicle.placa_o_matricula.toLocaleLowerCase()
+    .includes(vehicleFilters.matricula.trim().toLocaleLowerCase())
+  const seatClassCount = ['ECONOMICA', 'EJECUTIVA', 'PRIMERA']
+    .filter(seatClass => getSeatsByClass(vehicle, seatClass) > 0).length
+  return plateMatches && (!vehicleFilters.tiposAsiento || seatClassCount === Number(vehicleFilters.tiposAsiento))
+}))
 
 async function loadCatalogs() {
   loading.value = true
   try {
-    const [cityResponse, routeResponse, vehicleResponse, customerResponse] = await Promise.all([
-      api.get('/ciudades-aeropuerto'),
-      api.get('/rutas'),
-      api.get('/vehiculos'),
-      api.get('/usuarios'),
-    ])
-    cities.value = cityResponse.data
-    routes.value = routeResponse.data
-    vehicles.value = vehicleResponse.data
-    customers.value = customerResponse.data
+    if (props.section === 'rutas') {
+      const [cityResponse, routeResponse] = await Promise.all([api.get('/ciudades-aeropuerto'), api.get('/rutas')])
+      cities.value = cityResponse.data
+      routes.value = routeResponse.data
+    } else if (props.section === 'naves') {
+      vehicles.value = (await api.get('/vehiculos')).data
+    } else if (props.section === 'clientes') {
+      customers.value = (await api.get('/usuarios')).data
+    }
   } catch (error) {
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar los catálogos.' })
   } finally {
@@ -55,7 +82,7 @@ async function loadCatalogs() {
   }
 }
 
-onMounted(loadCatalogs)
+watch(() => props.section, loadCatalogs, { immediate: true })
 
 function clearRouteForm() {
   editingRouteId.value = ''
@@ -120,6 +147,18 @@ async function saveRoute() {
     clearRouteForm()
     await loadCatalogs()
   } catch (error) {
+    if (!editingRouteId.value && error.response?.data?.rutaId) {
+      let existingRoute = routes.value.find(item => item._id === error.response.data.rutaId)
+      if (!existingRoute) {
+        await loadCatalogs()
+        existingRoute = routes.value.find(item => item._id === error.response.data.rutaId)
+      }
+      if (existingRoute) {
+        editRoute(existingRoute)
+        Notify.create({ type: 'warning', message: 'Esta ruta ya está creada' })
+        return
+      }
+    }
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible guardar la ruta.' })
   } finally {
     saving.value = false
@@ -169,6 +208,7 @@ function clearVehicleForm() {
   editingVehicleId.value = ''
   Object.assign(vehicleForm, {
     placa_o_matricula: '',
+    tipo_vehiculo: 'REGIONAL',
     ECONOMICA: '',
     EJECUTIVA: '',
     PRIMERA: '',
@@ -192,6 +232,7 @@ function editVehicle(vehicle) {
   editingVehicleId.value = vehicle._id
   Object.assign(vehicleForm, {
     placa_o_matricula: vehicle.placa_o_matricula,
+    tipo_vehiculo: vehicle.tipo_vehiculo,
     ECONOMICA: vehicle.asientos.filter((seat) => (seat.clase_asiento || 'ECONOMICA') === 'ECONOMICA').length || '',
     EJECUTIVA: vehicle.asientos.filter((seat) => seat.clase_asiento === 'EJECUTIVA').length || '',
     PRIMERA: vehicle.asientos.filter((seat) => seat.clase_asiento === 'PRIMERA').length || '',
@@ -225,13 +266,14 @@ async function saveVehicle() {
     }
     const classCounts = ['ECONOMICA', 'EJECUTIVA', 'PRIMERA'].map((seatClass) => Number(vehicleForm[seatClass]) || 0)
     const totalSeats = classCounts.reduce((sum, count) => sum + count, 0)
-    if (classCounts.some((count) => !Number.isInteger(count) || count < 0) || totalSeats < 1 || totalSeats > 150) {
-      Notify.create({ type: 'warning', message: 'Configura entre 1 y 150 asientos en cantidades enteras por clase.' })
+    if (classCounts.some((count) => !Number.isInteger(count) || count < 0) || totalSeats < 1 || totalSeats > vehicleSeatLimit.value) {
+      Notify.create({ type: 'warning', message: `Configura entre 1 y ${vehicleSeatLimit.value} asientos para este tipo de avión.` })
       return
     }
     const asientos = buildSeatMap(vehicleForm, vehicles.value.find((item) => item._id === editingVehicleId.value)?.asientos || [])
     const payload = {
       placa_o_matricula: vehicleForm.placa_o_matricula.trim().toUpperCase(),
+      tipo_vehiculo: vehicleForm.tipo_vehiculo,
       capacidad_asientos: asientos.length,
       asientos,
     }
@@ -317,22 +359,19 @@ function confirmDeleteCustomer(customer) {
       <div class="page-header admin-page-header">
         <div>
           <p class="eyebrow">Administración</p>
-          <h2>Rutas, naves y clientes</h2>
-          <p class="admin-subtitle">Administra las ciudades, la capacidad de cada nave y las cuentas de clientes.</p>
+          <h2>{{ sectionTitle }}</h2>
+          <p class="admin-subtitle">{{ {
+            rutas: 'Administra las rutas y su duración estimada.',
+            naves: 'Administra aeronaves, capacidad y clases de asiento.',
+            clientes: 'Consulta, filtra y administra las cuentas de clientes.',
+          }[props.section] }}</p>
         </div>
         <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
       </div>
 
-      <q-tabs v-model="tab" dense align="left" active-color="primary" indicator-color="primary">
-        <q-tab name="rutas" label="Rutas" />
-        <q-tab name="naves" label="Naves y asientos" />
-        <q-tab name="clientes" label="Clientes" />
-      </q-tabs>
-      <q-separator />
-
       <div v-if="loading" class="state-box"><q-spinner-dots color="primary" size="40px" /><p>Cargando catálogos...</p></div>
-      <q-tab-panels v-else v-model="tab" animated>
-        <q-tab-panel name="rutas">
+      <template v-else>
+        <section v-if="props.section === 'rutas'">
           <h3 class="text-h6">{{ editingRouteId ? 'Editar ruta' : 'Crear ruta' }}</h3>
           <q-form @submit.prevent="saveRoute">
             <div class="form-grid">
@@ -346,8 +385,12 @@ function confirmDeleteCustomer(customer) {
               <q-btn type="submit" color="primary" :loading="saving" :label="editingRouteId ? 'Guardar cambios' : 'Crear ruta'" />
             </div>
           </q-form>
+          <div class="form-grid q-mt-md">
+            <q-select v-model="routeFilters.origen" :options="cities" label="Filtrar origen" outlined dense clearable />
+            <q-select v-model="routeFilters.destino" :options="cities" label="Filtrar destino" outlined dense clearable />
+          </div>
           <q-list bordered separator class="q-mt-md">
-            <q-item v-for="route in routes" :key="route._id">
+            <q-item v-for="route in filteredRoutes" :key="route._id">
               <q-item-section>{{ route.origen }} → {{ route.destino }} · {{ formatDuration(route.duracion_estimada_min) }}</q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
@@ -357,9 +400,9 @@ function confirmDeleteCustomer(customer) {
               </q-item-section>
             </q-item>
           </q-list>
-        </q-tab-panel>
+        </section>
 
-        <q-tab-panel name="naves">
+        <section v-else-if="props.section === 'naves'">
           <q-form class="admin-form-card" @submit.prevent="saveVehicle">
             <section class="vehicle-form-section">
               <div class="vehicle-step-heading">
@@ -372,7 +415,7 @@ function confirmDeleteCustomer(customer) {
               </div>
               <div class="form-grid vehicle-identity-grid">
                 <q-input v-model="vehicleForm.placa_o_matricula" label="Placa o matrícula" outlined dense required minlength="4" maxlength="20" />
-                <q-input model-value="Avión" label="Tipo de nave" outlined dense readonly />
+                <q-select v-model="vehicleForm.tipo_vehiculo" :options="vehicleTypes" emit-value map-options label="Tipo de avión" outlined dense required />
               </div>
             </section>
 
@@ -383,23 +426,32 @@ function confirmDeleteCustomer(customer) {
                   <h4>Cantidad de asientos por clase</h4>
                   <p>Indica cuántos asientos tendrá la nave en cada clase.</p>
                 </div>
-                <span class="vehicle-seat-total">{{ seatCount }} / 150 asientos</span>
+                <span class="vehicle-seat-total">{{ seatCount }} / {{ vehicleSeatLimit }} asientos</span>
               </div>
               <div class="vehicle-seat-count-grid">
-                <q-input v-model.number="vehicleForm.ECONOMICA" type="number" min="0" max="150" step="1" inputmode="numeric" label="Económica" outlined dense @focus="clearZeroSeatCount('ECONOMICA')" @blur="restoreEmptySeatCount('ECONOMICA')" />
-                <q-input v-model.number="vehicleForm.PRIMERA" type="number" min="0" max="150" step="1" inputmode="numeric" label="Primera clase" outlined dense @focus="clearZeroSeatCount('PRIMERA')" @blur="restoreEmptySeatCount('PRIMERA')" />
-                <q-input v-model.number="vehicleForm.EJECUTIVA" type="number" min="0" max="150" step="1" inputmode="numeric" label="Ejecutiva" outlined dense @focus="clearZeroSeatCount('EJECUTIVA')" @blur="restoreEmptySeatCount('EJECUTIVA')" />
+                <q-input v-model.number="vehicleForm.ECONOMICA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Económica" outlined dense @focus="clearZeroSeatCount('ECONOMICA')" @blur="restoreEmptySeatCount('ECONOMICA')" />
+                <q-input v-model.number="vehicleForm.PRIMERA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Primera clase" outlined dense @focus="clearZeroSeatCount('PRIMERA')" @blur="restoreEmptySeatCount('PRIMERA')" />
+                <q-input v-model.number="vehicleForm.EJECUTIVA" type="number" min="0" :max="vehicleSeatLimit" step="1" inputmode="numeric" label="Ejecutiva" outlined dense @focus="clearZeroSeatCount('EJECUTIVA')" @blur="restoreEmptySeatCount('EJECUTIVA')" />
               </div>
             </section>
-            <p class="text-caption text-grey-7 q-mt-md">La capacidad se calcula automáticamente. Configura entre 1 y 150 asientos en total.</p>
+            <p class="text-caption text-grey-7 q-mt-md">La capacidad se calcula automáticamente según el tipo de avión.</p>
             <div class="admin-form-actions">
               <q-btn type="submit" color="primary" :loading="saving" :label="editingVehicleId ? 'Guardar cambios' : 'Crear nave'" />
             </div>
           </q-form>
+          <div class="form-grid q-mt-md">
+            <q-input v-model="vehicleFilters.matricula" label="Filtrar por matrícula" outlined dense clearable />
+            <q-select v-model="vehicleFilters.tiposAsiento" :options="[
+              { label: 'Cualquier cantidad de tipos', value: '' },
+              { label: 'Los 3 tipos de asiento', value: '3' },
+              { label: 'Solo 2 tipos de asiento', value: '2' },
+              { label: 'Solo 1 tipo de asiento', value: '1' },
+            ]" emit-value map-options label="Tipos de asiento en la nave" outlined dense clearable />
+          </div>
           <q-list bordered separator class="q-mt-md">
-            <q-item v-for="vehicle in vehicles" :key="vehicle._id">
+            <q-item v-for="vehicle in filteredVehicles" :key="vehicle._id">
               <q-item-section>
-                <q-item-label class="text-weight-bold text-subtitle1">{{ vehicle.placa_o_matricula }} · {{ vehicle.tipo_vehiculo === 'AVION' ? 'Avión' : vehicle.tipo_vehiculo }}</q-item-label>
+                <q-item-label class="text-weight-bold text-subtitle1">{{ vehicle.placa_o_matricula }} · {{ vehicleTypes.find(type => type.value === vehicle.tipo_vehiculo)?.label.split(' · ')[0] || vehicle.tipo_vehiculo }}</q-item-label>
                 <q-item-label caption class="q-mt-xs text-weight-medium text-grey-9">
                   <strong>Capacidad total:</strong> {{ vehicle.capacidad_asientos }} asientos · {{ vehicle.viajes_programados?.length || 0 }} viajes próximos
                 </q-item-label>
@@ -423,14 +475,20 @@ function confirmDeleteCustomer(customer) {
               </q-item-section>
             </q-item>
           </q-list>
-        </q-tab-panel>
+        </section>
 
-        <q-tab-panel name="clientes">
-          <q-list v-if="customers.length" bordered separator>
-            <q-item v-for="customer in customers" :key="customer.id">
+        <section v-else-if="props.section === 'clientes'">
+          <div class="form-grid q-mb-md">
+            <q-input v-model="customerFilters.nombre" label="Filtrar por nombre" outlined dense clearable />
+            <q-input v-model="customerFilters.email" label="Filtrar por correo" outlined dense clearable />
+            <q-input v-model="customerFilters.documento" label="Filtrar por documento" outlined dense clearable />
+          </div>
+          <q-list v-if="filteredCustomers.length" bordered separator>
+            <q-item v-for="customer in filteredCustomers" :key="customer.id">
               <q-item-section>
                 <q-item-label>{{ customer.cliente?.nombre }} {{ customer.cliente?.apellido }}</q-item-label>
                 <q-item-label caption>{{ customer.email }}</q-item-label>
+                <q-item-label caption>Documento: {{ customer.cliente?.documento_identidad || 'No disponible' }}</q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
@@ -445,9 +503,9 @@ function confirmDeleteCustomer(customer) {
               </q-item-section>
             </q-item>
           </q-list>
-          <div v-else class="state-box"><p>No hay cuentas de clientes.</p></div>
-        </q-tab-panel>
-      </q-tab-panels>
+          <div v-else class="state-box"><p>{{ customers.length ? 'No hay clientes que coincidan con los filtros.' : 'No hay cuentas de clientes.' }}</p></div>
+        </section>
+      </template>
     </div>
 
     <q-dialog v-model="reservationsDialogOpen">

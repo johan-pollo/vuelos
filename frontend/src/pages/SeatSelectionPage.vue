@@ -154,18 +154,21 @@ function formatCurrency(value) {
         </q-tabs>
 
         <div class="seat-summary" v-if="selectedFlight">
-          <span>Disponibles: {{ availableSeats.length }}</span>
-          <span>Seleccionados: {{ activeSeats.length }}</span>
-          <span>Máximo: {{ maxSeats }}</span>
+          <span><q-icon name="event_seat" /> Disponibles <strong>{{ availableSeats.length }}</strong></span>
+          <span><q-icon name="check_circle" /> Seleccionados <strong>{{ activeSeats.length }}</strong></span>
+          <span><q-icon name="groups" /> Máximo <strong>{{ maxSeats }}</strong></span>
         </div>
 
         <div class="seat-class-key" aria-label="Colores de las clases de asiento">
           <span><i class="seat-class-swatch seat-class-economica" />Económica</span>
           <span><i class="seat-class-swatch seat-class-ejecutiva" />Ejecutiva</span>
           <span><i class="seat-class-swatch seat-class-primera" />Primera clase</span>
+          <span><i class="seat-class-swatch seat-occupied-swatch" />Ocupado</span>
+          <span><i class="seat-class-swatch seat-selected-swatch" />Seleccionado</span>
         </div>
 
         <div v-if="flightStore.seatMap.length" class="seat-map">
+          <div class="seat-map-heading"><q-icon name="flight" /> Frente del avión</div>
           <div v-for="row in seatRows" :key="row.number" class="seat-grid-row">
             <span class="seat-row-number">{{ row.number }}</span>
             <div v-for="(pair, pairIndex) in row.pairs" :key="`${row.number}-${pairIndex}`" class="seat-pair">
@@ -176,7 +179,7 @@ function formatCurrency(value) {
                 class="seat-btn"
                 :class="seatClasses(seat)"
                 :disable="seat.estado !== 'DISPONIBLE'"
-                :aria-label="`Asiento ${seat.numero_asiento}, ${classLabel(seat.clase_asiento)}, ${seat.estado === 'DISPONIBLE' ? 'disponible' : 'ocupado'}`"
+                :aria-label="`Asiento ${seat.numero_asiento}, ${classLabel(seat.clase_asiento)}, ${seat.estado !== 'DISPONIBLE' ? 'ocupado' : activeSeats.includes(seat.numero_asiento) ? 'seleccionado' : 'disponible'}`"
                 :aria-pressed="activeSeats.includes(seat.numero_asiento)"
                 @click="selectSeat(seat)"
               >

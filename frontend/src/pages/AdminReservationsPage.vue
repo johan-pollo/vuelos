@@ -5,6 +5,10 @@ import api from '../services/api'
 
 const reservations = ref([])
 const loading = ref(false)
+const selectedReservation = ref(null)
+const selectedFlightId = ref('')
+const seatMap = ref([])
+const loadingSeatMap = ref(false)
 const filters = reactive({ cliente: '', estado: '', codigo: '' })
 const pagination = ref({ rowsPerPage: 10 })
 
@@ -28,6 +32,22 @@ onMounted(async () => {
   }
 })
 
+const seatRows = computed(() => {
+  const rows = new Map()
+  for (const seat of seatMap.value) {
+    const match = String(seat.numero_asiento).match(/^(\d+)([A-Z])$/i)
+    const rowNumber = match?.[1] || String(rows.size + 1)
+    const row = rows.get(rowNumber) || Array(6).fill(null)
+    const columnIndex = match ? 'ABCDEF'.indexOf(match[2].toUpperCase()) : -1
+    const position = columnIndex >= 0 && !row[columnIndex] ? columnIndex : row.findIndex(value => value === null)
+    if (position >= 0) row[position] = seat
+    rows.set(rowNumber, row)
+  }
+  return [...rows.entries()]
+    .sort(([first], [second]) => Number(first) - Number(second))
+    .map(([number, seats]) => ({ number, pairs: [[seats[0], seats[1]], [seats[2], seats[3]], [seats[4], seats[5]]] }))
+})
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
 }
@@ -38,18 +58,33 @@ function paymentStatus(reservation) {
   return 'Pendiente'
 }
 
-function formatSeats(reservation) {
-  const tickets = reservation.detalle_asientos || []
-  const legs = [
-    { label: 'Ida', flight: reservation.viaje },
-    { label: 'Regreso', flight: reservation.viaje_regreso },
-  ].filter((leg) => leg.flight?._id)
-  return legs.map(({ label, flight }) => {
-    const seats = tickets
-      .filter((ticket) => String(ticket.viaje) === String(flight._id))
-      .map((ticket) => ticket.numero_asiento)
-    return seats.length ? `${label}: ${seats.join(', ')}` : ''
-  }).filter(Boolean).join(' · ') || (reservation.asientos || []).join(', ')
+async function selectReservation(reservation) {
+  selectedReservation.value = reservation
+  selectedFlightId.value = String(reservation.viaje?._id || '')
+  await loadSeatMap(selectedFlightId.value)
+}
+
+async function loadSeatMap(flightId) {
+  if (!flightId) return
+  loadingSeatMap.value = true
+  seatMap.value = []
+  try {
+    const { data } = await api.get(`/viajes/${flightId}/asientos`)
+    seatMap.value = data.asientos || []
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar el mapa de asientos.' })
+  } finally {
+    loadingSeatMap.value = false
+  }
+}
+
+function passengerForSeat(seatNumber) {
+  const ticket = selectedReservation.value?.detalle_asientos?.find(item => (
+    String(item.viaje) === String(selectedFlightId.value) && item.numero_asiento === seatNumber
+  ))
+  if (!ticket) return 'Asiento disponible'
+  const name = `${ticket.pasajero?.nombre || ''} ${ticket.pasajero?.apellido || ''}`.trim()
+  return name || 'Pasajero sin datos'
 }
 </script>
 
@@ -79,15 +114,16 @@ function formatSeats(reservation) {
               `${row.viaje?.ruta?.origen || ''} → ${row.viaje?.ruta?.destino || ''}`.trim(),
               row.viaje_regreso ? `${row.viaje_regreso.ruta?.origen || ''} → ${row.viaje_regreso.ruta?.destino || ''} (regreso)` : '',
             ].filter(Boolean).join(' · ') },
-            { name: 'asientos', label: 'Asientos', field: formatSeats },
             { name: 'estado', label: 'Estado', field: row => row.estado },
             { name: 'pago', label: 'Pago', field: row => paymentStatus(row) },
             { name: 'total', label: 'Total', field: row => formatCurrency(row.monto_total) },
           ]"
           row-key="_id"
+          @row-click="(_, row) => selectReservation(row)"
           flat
           bordered
           v-model:pagination="pagination"
+          class="admin-reservations-table"
         >
           <template #top>
             <div class="admin-reservations-filters">
@@ -97,6 +133,7 @@ function formatSeats(reservation) {
                 v-model="filters.estado"
                 :options="[
                   { label: 'Todos los estados', value: '' },
+                  { label: 'En proceso', value: 'EN_PROCESO' },
                   { label: 'Confirmada', value: 'CONFIRMADA' },
                   { label: 'Cancelada', value: 'CANCELADA' },
                 ]"
@@ -110,6 +147,44 @@ function formatSeats(reservation) {
             </div>
           </template>
         </q-table>
+        <q-card v-if="selectedReservation" flat bordered class="admin-reservation-seat-map q-mt-md">
+          <div class="page-header compact-header">
+            <div>
+              <p class="eyebrow">Reserva {{ selectedReservation.codigo_reserva }}</p>
+              <h3>Mapa completo de asientos</h3>
+            </div>
+            <q-btn flat icon="close" label="Cerrar" @click="selectedReservation = null" />
+          </div>
+          <q-tabs
+            v-if="selectedReservation.viaje_regreso"
+            :model-value="selectedFlightId"
+            dense
+            active-color="primary"
+            indicator-color="primary"
+            @update:model-value="selectedFlightId = $event; loadSeatMap($event)"
+          >
+            <q-tab :name="String(selectedReservation.viaje._id)" label="Ida" />
+            <q-tab :name="String(selectedReservation.viaje_regreso._id)" label="Regreso" />
+          </q-tabs>
+          <div v-if="loadingSeatMap" class="state-box"><q-spinner-dots color="primary" size="32px" /><p>Cargando mapa...</p></div>
+          <div v-else class="seat-map">
+            <div v-for="row in seatRows" :key="row.number" class="seat-grid-row">
+              <span class="seat-row-number">{{ row.number }}</span>
+              <div v-for="(pair, pairIndex) in row.pairs" :key="`${row.number}-${pairIndex}`" class="seat-pair">
+                <q-btn
+                  v-for="seat in pair.filter(Boolean)"
+                  :key="seat.numero_asiento"
+                  unelevated
+                  :class="['seat-btn', `seat-class-${(seat.clase_asiento || 'ECONOMICA').toLowerCase()}`, { 'seat-occupied': seat.estado !== 'DISPONIBLE' }]"
+                  :aria-label="`Asiento ${seat.numero_asiento}: ${passengerForSeat(seat.numero_asiento)}`"
+                >
+                  {{ seat.numero_asiento }}
+                  <q-tooltip>{{ passengerForSeat(seat.numero_asiento) }}</q-tooltip>
+                </q-btn>
+              </div>
+            </div>
+          </div>
+        </q-card>
       </div>
     </div>
   </q-page>

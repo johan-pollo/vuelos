@@ -11,6 +11,8 @@ const bookingStore = useBookingStore()
 const reservations = ref([])
 const loading = ref(false)
 const savingId = ref('')
+const reservationSeatMaps = ref({})
+const loadingSeatMaps = ref({})
 const statusFilter = ref('TODAS')
 const visibleReservations = computed(() => reservations.value.filter((reservation) => (
   statusFilter.value === 'TODAS' || paymentStatus(reservation) === statusFilter.value
@@ -49,6 +51,35 @@ function passengersFor(reservation) {
 function ticketsForFlight(reservation, flight) {
   if (!flight?._id) return []
   return (reservation.detalle_asientos || []).filter((ticket) => String(ticket.viaje) === String(flight._id))
+}
+
+async function loadReservationSeatMap(flight) {
+  if (!flight?._id || reservationSeatMaps.value[flight._id] || loadingSeatMaps.value[flight._id]) return
+  loadingSeatMaps.value = { ...loadingSeatMaps.value, [flight._id]: true }
+  try {
+    const { data } = await api.get(`/viajes/${flight._id}/asientos`)
+    reservationSeatMaps.value = { ...reservationSeatMaps.value, [flight._id]: data.asientos || [] }
+  } catch (error) {
+    Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar el mapa de asientos.' })
+  } finally {
+    loadingSeatMaps.value = { ...loadingSeatMaps.value, [flight._id]: false }
+  }
+}
+
+function seatRows(flight) {
+  const rows = new Map()
+  for (const seat of reservationSeatMaps.value[flight?._id] || []) {
+    const match = String(seat.numero_asiento).match(/^(\d+)([A-Z])$/i)
+    const rowNumber = match?.[1] || String(rows.size + 1)
+    const row = rows.get(rowNumber) || Array(6).fill(null)
+    const columnIndex = match ? 'ABCDEF'.indexOf(match[2].toUpperCase()) : -1
+    const position = columnIndex >= 0 && !row[columnIndex] ? columnIndex : row.findIndex(value => value === null)
+    if (position >= 0) row[position] = seat
+    rows.set(rowNumber, row)
+  }
+  return [...rows.entries()]
+    .sort(([first], [second]) => Number(first) - Number(second))
+    .map(([number, seats]) => ({ number, pairs: [[seats[0], seats[1]], [seats[2], seats[3]], [seats[4], seats[5]]] }))
 }
 
 function passengerLabel(ticket, reservation) {
@@ -124,6 +155,14 @@ function startPayment(reservation) {
   router.push({ name: 'payment', query: { returnTo: 'reservations' } })
 }
 
+function buyMoreSeats(flight) {
+  bookingStore.selectedFlightId = flight._id
+  bookingStore.returnFlightId = ''
+  bookingStore.returnSeats = []
+  bookingStore.returnPassengers = []
+  router.push({ name: 'seat-selection', params: { id: flight._id } })
+}
+
 function confirmCancellation(reservation) {
   Dialog.create({
     title: 'Cancelar reserva',
@@ -194,6 +233,37 @@ function formatCurrency(value) {
                 <span><small>Duración estimada</small>{{ formatDuration(reservation.viaje?.ruta?.duracion_estimada_min) }}</span>
                 <span><small>Asiento, clase y valor</small>{{ ticketsForFlight(reservation, reservation.viaje).map(formatTicket).join(', ') || 'Sin boletos' }}</span>
               </div>
+              <q-expansion-item
+                class="reservation-seat-map-expansion"
+                icon="event_seat"
+                label="Mapa de asientos"
+                @show="loadReservationSeatMap(reservation.viaje)"
+              >
+                <div v-if="loadingSeatMaps[reservation.viaje?._id]" class="state-box"><q-spinner-dots color="primary" size="28px" /><p>Cargando mapa...</p></div>
+                <div v-else class="seat-map reservation-seat-map">
+                  <div v-for="row in seatRows(reservation.viaje)" :key="row.number" class="seat-grid-row">
+                    <span class="seat-row-number">{{ row.number }}</span>
+                    <div v-for="(pair, pairIndex) in row.pairs" :key="`${row.number}-${pairIndex}`" class="seat-pair">
+                      <q-btn
+                        v-for="seat in pair.filter(Boolean)"
+                        :key="seat.numero_asiento"
+                        unelevated
+                        dense
+                        disable
+                        :class="['seat-btn', `seat-class-${(seat.clase_asiento || 'ECONOMICA').toLowerCase()}`, { 'seat-occupied': seat.estado !== 'DISPONIBLE' }]"
+                      >{{ seat.numero_asiento }}</q-btn>
+                    </div>
+                  </div>
+                </div>
+              </q-expansion-item>
+              <q-btn
+                v-if="new Date(reservation.viaje?.fecha_hora_salida) > new Date()"
+                flat
+                color="primary"
+                icon="add"
+                label="Comprar más asientos para este vuelo"
+                @click="buyMoreSeats(reservation.viaje)"
+              />
             </section>
             <section v-if="reservation.viaje_regreso" class="reservation-leg">
               <h4>Viaje de regreso</h4>
@@ -204,6 +274,37 @@ function formatCurrency(value) {
                 <span><small>Duración estimada</small>{{ formatDuration(reservation.viaje_regreso.ruta?.duracion_estimada_min) }}</span>
                 <span><small>Asiento, clase y valor</small>{{ ticketsForFlight(reservation, reservation.viaje_regreso).map(formatTicket).join(', ') || 'Sin boletos' }}</span>
               </div>
+              <q-expansion-item
+                class="reservation-seat-map-expansion"
+                icon="event_seat"
+                label="Mapa de asientos"
+                @show="loadReservationSeatMap(reservation.viaje_regreso)"
+              >
+                <div v-if="loadingSeatMaps[reservation.viaje_regreso?._id]" class="state-box"><q-spinner-dots color="primary" size="28px" /><p>Cargando mapa...</p></div>
+                <div v-else class="seat-map reservation-seat-map">
+                  <div v-for="row in seatRows(reservation.viaje_regreso)" :key="row.number" class="seat-grid-row">
+                    <span class="seat-row-number">{{ row.number }}</span>
+                    <div v-for="(pair, pairIndex) in row.pairs" :key="`${row.number}-${pairIndex}`" class="seat-pair">
+                      <q-btn
+                        v-for="seat in pair.filter(Boolean)"
+                        :key="seat.numero_asiento"
+                        unelevated
+                        dense
+                        disable
+                        :class="['seat-btn', `seat-class-${(seat.clase_asiento || 'ECONOMICA').toLowerCase()}`, { 'seat-occupied': seat.estado !== 'DISPONIBLE' }]"
+                      >{{ seat.numero_asiento }}</q-btn>
+                    </div>
+                  </div>
+                </div>
+              </q-expansion-item>
+              <q-btn
+                v-if="new Date(reservation.viaje_regreso?.fecha_hora_salida) > new Date()"
+                flat
+                color="primary"
+                icon="add"
+                label="Comprar más asientos para este vuelo"
+                @click="buyMoreSeats(reservation.viaje_regreso)"
+              />
             </section>
           </div>
           <div class="summary-box">

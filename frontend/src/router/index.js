@@ -10,7 +10,6 @@ const SummaryPage = () => import('../pages/SummaryPage.vue')
 const PaymentPage = () => import('../pages/PaymentPage.vue')
 const ConfirmationPage = () => import('../pages/ConfirmationPage.vue')
 const TicketPage = () => import('../pages/TicketPage.vue')
-const ReservationLookupPage = () => import('../pages/ReservationLookupPage.vue')
 const AdminDashboardPage = () => import('../pages/AdminDashboardPage.vue')
 const AdminFlightsPage = () => import('../pages/AdminFlightsPage.vue')
 const AdminNewFlightPage = () => import('../pages/AdminNewFlightPage.vue')
@@ -33,14 +32,22 @@ const router = createRouter({
     { path: '/pago', name: 'payment', component: PaymentPage, meta: { requiresAuth: true } },
     { path: '/confirmacion', name: 'confirmation', component: ConfirmationPage, meta: { requiresAuth: true, requiresClient: true } },
     { path: '/ticket', name: 'ticket', component: TicketPage, meta: { requiresAuth: true, requiresClient: true } },
-    { path: '/consultar-reserva', name: 'reservation-lookup', component: ReservationLookupPage },
     { path: '/admin/login', redirect: { name: 'login' } },
     { path: '/admin', name: 'admin-dashboard', component: AdminDashboardPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/vuelos', name: 'admin-flights', component: AdminFlightsPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/vuelos/nuevo', name: 'admin-new-flight', component: AdminNewFlightPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/reservas', name: 'admin-reservas', component: AdminReservationsPage, meta: { requiresAuth: true, requiresAdmin: true } },
     { path: '/admin/reservar', name: 'admin-booking', component: AdminBookingPage, meta: { requiresAuth: true, requiresAdmin: true } },
-    { path: '/admin/catalogos', name: 'admin-catalogs', component: AdminCatalogPage, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/rutas', name: 'admin-routes', component: AdminCatalogPage, props: { section: 'rutas' }, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/naves', name: 'admin-vehicles', component: AdminCatalogPage, props: { section: 'naves' }, meta: { requiresAuth: true, requiresAdmin: true } },
+    { path: '/admin/clientes', name: 'admin-customers', component: AdminCatalogPage, props: { section: 'clientes' }, meta: { requiresAuth: true, requiresAdmin: true } },
+    {
+      path: '/admin/catalogos',
+      name: 'admin-catalogs',
+      redirect: to => ({
+        name: to.query.tab === 'naves' ? 'admin-vehicles' : to.query.tab === 'clientes' ? 'admin-customers' : 'admin-routes',
+      }),
+    },
     { path: '/cuenta', name: 'account', component: AccountPage, meta: { requiresAuth: true } },
     { path: '/mis-reservas', name: 'my-reservations', component: MyReservationsPage, meta: { requiresAuth: true, requiresClient: true } },
   ],

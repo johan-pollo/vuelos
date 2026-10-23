@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import { useFlightStore } from '../stores/flightStore'
@@ -10,6 +10,17 @@ const route = useRoute()
 const router = useRouter()
 const flightStore = useFlightStore()
 const loading = ref(false)
+const filters = reactive({
+  origen: route.query.origen?.toString() || '',
+  destino: route.query.destino?.toString() || '',
+  fecha: route.query.fecha?.toString() || '',
+})
+const originOptions = ref([])
+const destinationOptions = ref([])
+const locations = computed(() => [...new Set(flightStore.flights.flatMap((flight) => [
+  flight.ruta?.origen,
+  flight.ruta?.destino,
+]).filter(Boolean))].sort((first, second) => first.localeCompare(second, 'es')))
 
 function localDate(value) {
   const date = new Date(value)
@@ -22,6 +33,8 @@ onMounted(async () => {
   loading.value = true
   try {
     await flightStore.fetchFlights()
+    originOptions.value = locations.value
+    destinationOptions.value = locations.value
   } catch (error) {
     Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible cargar los vuelos.' })
   } finally {
@@ -29,10 +42,25 @@ onMounted(async () => {
   }
 })
 
+function filterLocations(value, update, target) {
+  const search = value.trim().toLocaleLowerCase()
+  update(() => {
+    target.value = locations.value.filter((location) => location.toLocaleLowerCase().includes(search))
+  })
+}
+
+function filterOrigins(value, update) {
+  filterLocations(value, update, originOptions)
+}
+
+function filterDestinations(value, update) {
+  filterLocations(value, update, destinationOptions)
+}
+
 const filteredFlights = computed(() => {
-  const origen = route.query.origen?.toString().trim().toLowerCase() || ''
-  const destino = route.query.destino?.toString().trim().toLowerCase() || ''
-  const fecha = route.query.fecha?.toString() || ''
+  const origen = String(filters.origen || '').trim().toLowerCase()
+  const destino = String(filters.destino || '').trim().toLowerCase()
+  const fecha = filters.fecha || ''
   const pasajeros = Math.max(1, Number.parseInt(route.query.pasajeros?.toString() || '1', 10) || 1)
 
   return flightStore.flights.filter((flight) => {
@@ -76,6 +104,12 @@ function formatCurrency(value) {
       <q-btn flat color="primary" icon="arrow_back" label="Inicio" to="/" class="flights-home-button back-navigation" />
     </div>
 
+    <div class="flight-filters">
+      <q-select v-model="filters.origen" :options="originOptions" label="Origen" outlined dense clearable use-input input-debounce="0" @filter="filterOrigins" />
+      <q-select v-model="filters.destino" :options="destinationOptions" label="Destino" outlined dense clearable use-input input-debounce="0" @filter="filterDestinations" />
+      <q-input v-model="filters.fecha" label="Fecha de salida" type="date" outlined dense clearable />
+    </div>
+
     <div v-if="loading" class="state-box">
       <q-spinner-dots color="primary" size="40px" />
       <p>Buscando vuelos disponibles...</p>
@@ -96,12 +130,12 @@ function formatCurrency(value) {
           <div class="flight-route">
             <div class="flight-route-stop">
               <small>Origen</small>
-              <strong>{{ flight.ruta?.origen }}</strong>
+              <strong class="flight-city">{{ flight.ruta?.origen }}</strong>
             </div>
             <q-icon name="arrow_forward" color="primary" />
             <div class="flight-route-stop">
               <small>Destino</small>
-              <strong>{{ flight.ruta?.destino }}</strong>
+              <strong class="flight-city">{{ flight.ruta?.destino }}</strong>
             </div>
           </div>
 
@@ -114,8 +148,8 @@ function formatCurrency(value) {
             <div class="flight-info-item"><small>Salida</small><strong>{{ formatDateTime(flight.fecha_hora_salida) }}</strong></div>
             <div class="flight-info-item"><small>Llegada</small><strong>{{ formatDateTime(flight.fecha_hora_llegada) }}</strong></div>
             <div class="flight-info-item"><small>Duración</small><strong>{{ formatDuration(flight.ruta?.duracion_estimada_min) }}</strong></div>
-            <div class="flight-info-item"><small>Vehículo</small><strong>{{ flight.vehiculo?.placa_o_matricula }}</strong></div>
-            <div class="flight-info-item"><small>Disponibles</small><strong>{{ flight.asientos_disponibles }}</strong></div>
+            <div class="flight-info-item"><small>Placa del vehículo</small><strong>{{ flight.vehiculo?.placa_o_matricula }}</strong></div>
+            <div class="flight-info-item"><small>Asientos disponibles</small><strong>{{ flight.asientos_disponibles }}</strong></div>
             <div class="flight-info-item"><small>Precio base</small><strong>{{ formatCurrency(flight.precio_base) }}</strong></div>
           </div>
 
@@ -139,5 +173,3 @@ function formatCurrency(value) {
     </div>
   </q-page>
 </template>
-
-

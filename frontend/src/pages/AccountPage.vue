@@ -126,7 +126,7 @@ function confirmDeleteAccount() {
       <q-form @submit.prevent="saveProfile">
         <div class="form-grid">
           <q-input :model-value="authStore.user?.email || ''" label="Correo" type="email" outlined dense readonly />
-          <q-input v-model="profile.username" label="Nombre de usuario" outlined dense required minlength="3" maxlength="30" />
+          <q-input v-if="authStore.isAdmin" v-model="profile.username" label="Nombre de usuario" outlined dense required minlength="3" maxlength="30" />
           <template v-if="!authStore.isAdmin">
             <q-input v-model="profile.nombre" label="Nombre" outlined dense required minlength="2" maxlength="50" />
             <q-input v-model="profile.apellido" label="Apellido" outlined dense required minlength="2" maxlength="50" />

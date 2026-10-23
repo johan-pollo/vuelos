@@ -107,10 +107,6 @@ async function submit() {
             <q-select v-model="form.ruta" :options="flightStore.routeOptions.map((route) => ({ label: `${route.origen} → ${route.destino}`, value: route._id }))" label="Ruta" emit-value map-options outlined dense required />
             <q-select v-model="form.vehiculo" :options="flightStore.vehicleOptions.map((vehicle) => ({ label: `${vehicle.placa_o_matricula} · ${vehicle.capacidad_asientos} asientos`, value: vehicle._id }))" label="Nave" emit-value map-options outlined dense required />
           </div>
-          <div class="admin-actions q-mt-sm">
-            <q-btn flat color="primary" icon="add_road" label="Crear ruta" :to="{ name: 'admin-catalogs', query: { tab: 'rutas' } }" />
-            <q-btn flat color="primary" icon="airplanemode_active" label="Crear nave" :to="{ name: 'admin-catalogs', query: { tab: 'naves' } }" />
-          </div>
           <p v-if="selectedRoute" class="text-caption text-grey-7 q-mt-sm">Duración estimada de la ruta: {{ formatDuration(selectedRoute.duracion_estimada_min) }}.</p>
           <p v-if="selectedVehicle" class="text-caption text-grey-7 q-mt-sm">Capacidad de la nave: {{ selectedVehicle.capacidad_asientos }} asientos.</p>
         </section>

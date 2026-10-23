@@ -26,8 +26,7 @@ api.interceptors.response.use(
     const hadToken = Boolean(request?.headers?.Authorization)
     const endpoint = request?.url || ''
     const publicGet = request?.method?.toLowerCase() === 'get'
-      && (endpoint === '/viajes'
-        || endpoint.startsWith('/reservas/codigo/'))
+      && endpoint === '/viajes'
 
     if (error.response?.status === 401 && hadToken) {
       useAuthStore().logout()

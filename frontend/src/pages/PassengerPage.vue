@@ -56,6 +56,7 @@ function validatePassengers(passengers, seats, label) {
   if (!seats.length || passengers.length !== seats.length) {
     throw new Error(`Selecciona asientos y completa los pasajeros de ${label}.`)
   }
+  const passengerDocuments = new Set()
   for (const passenger of passengers) {
     const nombre = passenger.nombre.trim()
     const apellido = passenger.apellido.trim()
@@ -69,6 +70,11 @@ function validatePassengers(passengers, seats, label) {
     if (!/^[A-Za-z0-9.-]{5,25}$/.test(documento)) {
       throw new Error('El documento debe tener entre 5 y 25 caracteres válidos.')
     }
+    const normalizedDocument = documento.toLocaleLowerCase()
+    if (passengerDocuments.has(normalizedDocument)) {
+      throw new Error(`Cada asiento debe corresponder a un pasajero distinto en ${label}; no repitas el documento.`)
+    }
+    passengerDocuments.add(normalizedDocument)
     if (passenger.telefono && !/^\+?[0-9 ()-]{7,20}$/.test(passenger.telefono.trim())) {
       throw new Error('El teléfono debe tener entre 7 y 20 caracteres válidos.')
     }

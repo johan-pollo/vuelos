@@ -5,12 +5,9 @@
         <div>
           <p class="eyebrow">Administración</p>
           <h2 class="admin-dashboard-title">Dashboard administrativo</h2>
-          <p class="admin-subtitle">Gestiona vuelos, reservas y catálogo desde un solo lugar.</p>
+          <p class="admin-subtitle">Gestiona vuelos, reservas, rutas, naves y clientes.</p>
         </div>
-        <div class="admin-actions admin-dashboard-actions">
-          <q-btn flat icon="arrow_back" label="Volver al sitio" @click="router.push({ name: 'home' })" class="back-navigation" />
-          <q-btn color="primary" label="Crear viaje" :to="{ name: 'admin-new-flight' }" />
-        </div>
+        <q-btn flat icon="arrow_back" label="Volver al sitio" @click="router.push({ name: 'home' })" class="back-navigation" />
       </div>
 
 
@@ -20,23 +17,23 @@
       </div>
 
       <nav class="admin-nav-grid" aria-label="Secciones administrativas">
-        <router-link class="admin-nav-card" :to="{ name: 'admin-flights' }">
+        <router-link class="admin-nav-card" :class="{ 'admin-nav-card-active': ['admin-flights', 'admin-new-flight'].includes(route.name) }" :to="{ name: 'admin-flights' }">
           <q-icon name="flight_takeoff" />
           <span>Vuelos</span>
         </router-link>
-        <router-link class="admin-nav-card" :to="{ name: 'admin-reservas' }">
+        <router-link class="admin-nav-card" :class="{ 'admin-nav-card-active': route.name === 'admin-reservas' }" :to="{ name: 'admin-reservas' }">
           <q-icon name="confirmation_number" />
           <span>Reservas</span>
         </router-link>
-        <router-link class="admin-nav-card" :to="{ name: 'admin-catalogs', query: { tab: 'rutas' } }">
+        <router-link class="admin-nav-card" :class="{ 'admin-nav-card-active': route.name === 'admin-routes' }" :to="{ name: 'admin-routes' }">
           <q-icon name="alt_route" />
           <span>Rutas</span>
         </router-link>
-        <router-link class="admin-nav-card" :to="{ name: 'admin-catalogs', query: { tab: 'naves' } }">
+        <router-link class="admin-nav-card" :class="{ 'admin-nav-card-active': route.name === 'admin-vehicles' }" :to="{ name: 'admin-vehicles' }">
           <q-icon name="airplanemode_active" />
           <span>Naves y asientos</span>
         </router-link>
-        <router-link class="admin-nav-card" :to="{ name: 'admin-catalogs', query: { tab: 'clientes' } }">
+        <router-link class="admin-nav-card" :class="{ 'admin-nav-card-active': route.name === 'admin-customers' }" :to="{ name: 'admin-customers' }">
           <q-icon name="group" />
           <span>Clientes</span>
         </router-link>
@@ -64,10 +61,11 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 
 const router = useRouter()
+const route = useRoute()
 const flights = ref([])
 const totalReservations = ref(0)
 const loading = ref(false)
@@ -88,9 +86,6 @@ onMounted(async () => {
   }
 })
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value || 0)
-}
 </script>
 
 <style scoped>

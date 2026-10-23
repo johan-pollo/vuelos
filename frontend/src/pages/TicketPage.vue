@@ -203,7 +203,6 @@ const balanceTotal = computed(() => {
 
       <div class="form-actions">
         <q-btn flat label="Inicio" to="/" class="back-navigation" />
-        <q-btn color="primary" label="Consultar reserva" to="/consultar-reserva" />
       </div>
     </div>
   </q-page>

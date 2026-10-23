@@ -1,7 +1,9 @@
 <script setup>
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/authStore'
 
+const route = useRoute()
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
@@ -32,7 +34,13 @@ function logout() {
         <div class="top-links">
           <q-btn flat label="Inicio" to="/" />
           <q-btn flat label="Vuelos" to="/vuelos" />
-          <q-btn flat label="Consultar reserva" to="/consultar-reserva" />
+          <q-btn
+            v-if="isAuthenticated && !isAdmin"
+            flat
+            label="Mis reservas"
+            :to="{ name: 'my-reservations' }"
+            :class="{ 'nav-link-active': route.name === 'my-reservations' }"
+          />
           <q-btn v-if="!isAuthenticated" flat label="Iniciar sesión" to="/login" />
           <template v-if="isAuthenticated && isAdmin">
             <q-btn flat label="Administración" to="/admin" />
@@ -51,10 +59,6 @@ function logout() {
                 <q-item-section avatar><q-icon name="manage_accounts" /></q-item-section>
                 <q-item-section>Mi cuenta</q-item-section>
               </q-item>
-              <q-item v-if="!isAdmin" v-close-popup clickable :to="{ name: 'my-reservations' }">
-                <q-item-section avatar><q-icon name="confirmation_number" /></q-item-section>
-                <q-item-section>Mis reservas</q-item-section>
-              </q-item>
               <q-separator />
               <q-item v-close-popup clickable @click="logout">
                 <q-item-section avatar><q-icon name="logout" /></q-item-section>
@@ -72,8 +76,8 @@ function logout() {
             <q-item v-close-popup clickable to="/vuelos">
               <q-item-section>Vuelos disponibles</q-item-section>
             </q-item>
-            <q-item v-close-popup clickable to="/consultar-reserva">
-              <q-item-section>Consultar reserva</q-item-section>
+            <q-item v-if="isAuthenticated && !isAdmin" v-close-popup clickable :to="{ name: 'my-reservations' }">
+              <q-item-section>Mis reservas</q-item-section>
             </q-item>
             <q-item v-if="!isAuthenticated" v-close-popup clickable to="/login">
               <q-item-section>Iniciar sesión</q-item-section>
@@ -85,9 +89,6 @@ function logout() {
               </q-item>
               <q-item v-if="!isAdmin" v-close-popup clickable to="/cuenta">
                 <q-item-section>Mi cuenta</q-item-section>
-              </q-item>
-              <q-item v-if="!isAdmin" v-close-popup clickable to="/mis-reservas">
-                <q-item-section>Mis reservas</q-item-section>
               </q-item>
               <q-item v-close-popup clickable @click="logout">
                 <q-item-section>Cerrar sesión</q-item-section>
@@ -125,10 +126,10 @@ function logout() {
           <span>Únete a nuestro equipo</span>
         </section>
 
-        <section class="footer-column">
-          <h2>Tu reserva</h2>
-          <router-link to="/consultar-reserva">Consulta el estado de tu reserva y tus boletos con el código de confirmación.</router-link>
+        <section class="footer-airplane" aria-label="Avión de AeroJoher">
+          <img src="/assets/aerojoher-airplane.jpeg" alt="Avión de AeroJoher volando sobre las nubes" />
         </section>
+
       </div>
 
       <div class="footer-bottom">
