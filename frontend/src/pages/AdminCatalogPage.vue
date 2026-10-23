@@ -68,7 +68,7 @@ const filteredVehicles = computed(() => vehicles.value.filter((vehicle) => {
   const seatClassCount = ['ECONOMICA', 'EJECUTIVA', 'PRIMERA']
     .filter(seatClass => getSeatsByClass(vehicle, seatClass) > 0).length
   return plateMatches && (!vehicleFilters.tiposAsiento || seatClassCount === Number(vehicleFilters.tiposAsiento))
-}))
+}).sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0)))
 
 async function loadCatalogs() {
   loading.value = true
@@ -236,6 +236,7 @@ function getSeatsByClass(vehicle, seatClass) {
 }
 
 function editVehicle(vehicle) {
+  if (vehicle.tiene_asientos_reservados) return
   editingVehicleId.value = vehicle._id
   Object.assign(vehicleForm, {
     placa_o_matricula: vehicle.placa_o_matricula,
@@ -486,7 +487,9 @@ function confirmDeleteCustomer(customer) {
               </q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
-                  <q-btn flat color="primary" icon="edit" label="Editar" @click="editVehicle(vehicle)" />
+                  <q-btn flat color="primary" icon="edit" label="Editar" :disable="vehicle.tiene_asientos_reservados" @click="editVehicle(vehicle)">
+                    <q-tooltip v-if="vehicle.tiene_asientos_reservados">No se puede modificar una nave con asientos reservados.</q-tooltip>
+                  </q-btn>
                   <q-btn flat color="negative" icon="delete" label="Eliminar" @click="confirmDeleteVehicle(vehicle)" />
                 </div>
               </q-item-section>
@@ -495,7 +498,7 @@ function confirmDeleteCustomer(customer) {
         </section>
 
         <section v-else-if="props.section === 'clientes'">
-          <div class="form-grid q-mb-md">
+          <div class="form-grid customer-filter-grid q-mb-md">
             <q-input v-model="customerFilters.nombre" label="Filtrar por nombre" outlined dense clearable />
             <q-input v-model="customerFilters.email" label="Filtrar por correo" outlined dense clearable />
             <q-input v-model="customerFilters.documento" label="Filtrar por documento" outlined dense clearable />
