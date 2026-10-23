@@ -478,6 +478,19 @@ app.get('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), asy
 app.post('/api/rutas', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
   validarCamposPermitidos(req.body, ['origen', 'destino', 'duracion_estimada_min']);
   validarCiudadesDeRuta(req.body);
+  const origen = req.body.origen.trim().toLowerCase();
+  const destino = req.body.destino.trim().toLowerCase();
+  const rutaExistente = await Ruta.findOne({
+    $expr: {
+      $and: [
+        { $eq: [{ $toLower: '$origen' }, origen] },
+        { $eq: [{ $toLower: '$destino' }, destino] },
+      ],
+    },
+  });
+  if (rutaExistente) {
+    return res.status(409).json({ error: 'Esta ruta ya está creada', rutaId: rutaExistente._id });
+  }
   const ruta = await Ruta.create(req.body);
   res.status(201).json(ruta);
 });
@@ -506,16 +519,16 @@ app.delete('/api/rutas/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), 
 });
 
 app.post('/api/vehiculos', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
-  validarCamposPermitidos(req.body, ['placa_o_matricula', 'capacidad_asientos', 'asientos']);
-  const vehiculo = await Vehiculo.create({ ...req.body, tipo_vehiculo: 'AVION' });
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
+  const vehiculo = await Vehiculo.create(req.body);
   res.status(201).json(vehiculo);
 });
 
 app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'), async (req, res) => {
   validarObjectId(req.params.id, 'La nave');
-  validarCamposPermitidos(req.body, ['placa_o_matricula', 'capacidad_asientos', 'asientos']);
-  if (!['placa_o_matricula', 'capacidad_asientos', 'asientos'].every(campo => campo in req.body)) {
-    return res.status(400).json({ error: 'Envía matrícula, capacidad y mapa completo de asientos.' });
+  validarCamposPermitidos(req.body, ['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos']);
+  if (!['placa_o_matricula', 'tipo_vehiculo', 'capacidad_asientos', 'asientos'].every(campo => campo in req.body)) {
+    return res.status(400).json({ error: 'Envía matrícula, tipo, capacidad y mapa completo de asientos.' });
   }
   const vehiculoActual = await Vehiculo.findById(req.params.id);
   if (!vehiculoActual) return res.status(404).json({ error: 'La nave no existe.' });
@@ -534,10 +547,7 @@ app.put('/api/vehiculos/:id', exigirBaseDeDatos, autenticar, autorizar('ADMIN'),
     return res.status(409).json({ error: 'No puedes quitar ni cambiar la clase de asientos que ya tienen reservas.' });
   }
 
-  const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, {
-    ...req.body,
-    tipo_vehiculo: 'AVION',
-  }, {
+  const vehiculo = await Vehiculo.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
   });
@@ -826,34 +836,6 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
   }
 });
 
-app.get('/api/reservas/codigo/:codigo', exigirBaseDeDatos, async (req, res) => {
-  const codigo = String(req.params.codigo || '').trim().toUpperCase();
-  if (!/^[A-F0-9]{32}$/.test(codigo)) {
-    return res.status(400).json({ error: 'El código de reserva debe tener 32 caracteres hexadecimales.' });
-  }
-  const reserva = await Reserva.findOne({ codigo_reserva: codigo })
-    .populate({ path: 'viaje', populate: { path: 'ruta' } })
-    .populate({ path: 'viaje_regreso', populate: { path: 'ruta' } });
-  if (!reserva) return res.status(404).json({ error: 'No encontramos una reserva con ese código.' });
-
-  const boletos = await Boleto.find({ reserva: reserva._id })
-    .select('viaje numero_asiento clase_asiento precio_pagado');
-  res.json({
-    codigo_reserva: reserva.codigo_reserva,
-    estado: reserva.estado,
-    monto_total: reserva.monto_total,
-    pago: reserva.pago,
-    viajes: [reserva.viaje, reserva.viaje_regreso].filter(Boolean),
-    boletos: boletos.map(boleto => ({
-      viaje: boleto.viaje,
-      numero_asiento: boleto.numero_asiento,
-      clase_asiento: boleto.clase_asiento || 'ECONOMICA',
-      precio_pagado: boleto.precio_pagado,
-    })),
-    creada: reserva.createdAt,
-  });
-});
-
 app.post('/api/reservas/:id/pagar', exigirBaseDeDatos, autenticar, async (req, res) => {
   if (!['CLIENTE', 'ADMIN'].includes(req.usuario.rol)) {
     return res.status(403).json({ error: 'No tienes permiso para procesar pagos.' });
@@ -1072,10 +1054,20 @@ app.post('/api/reservas/:id/cancelar', exigirBaseDeDatos, autenticar, autorizar(
   res.json({ mensaje: 'Reserva cancelada y asientos liberados.' });
 });
 
-app.use((error, req, res, next) => {
+app.use(async (error, req, res, next) => {
   if (res.headersSent) return next(error);
 
   if (error.code === 11000) {
+    if (error.keyPattern?.origen && error.keyPattern?.destino) {
+      const rutaExistente = await Ruta.findOne({
+        origen: error.keyValue.origen,
+        destino: error.keyValue.destino,
+      });
+      return res.status(409).json({
+        error: 'Esta ruta ya está creada',
+        ...(rutaExistente ? { rutaId: rutaExistente._id } : {}),
+      });
+    }
     const campo = Object.keys(error.keyPattern || {})[0] || 'dato';
     return res.status(409).json({ error: `Ya existe un registro con ese ${campo}.` });
   }
@@ -1098,8 +1090,8 @@ const server = app.listen(PORT, () => {
   connectToMongoDB()
     .then(async () => {
       const migracionNaves = await Vehiculo.updateMany(
-        { tipo_vehiculo: { $ne: 'AVION' } },
-        { $set: { tipo_vehiculo: 'AVION' } },
+        { tipo_vehiculo: { $nin: ['REGIONAL', 'MEDIANO', 'GRANDE'] } },
+        { $set: { tipo_vehiculo: 'GRANDE' } },
       );
       if (migracionNaves.modifiedCount) {
         console.log(`Naves actualizadas a avión: ${migracionNaves.modifiedCount}.`);

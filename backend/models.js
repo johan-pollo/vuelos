@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const { Schema, model } = mongoose;
 const opcionesEstrictas = { timestamps: true, strict: 'throw' };
+const capacidadesMaximas = { REGIONAL: 50, MEDIANO: 100, GRANDE: 150 };
 
 const clienteSchema = new Schema({
   documento_identidad: {
@@ -157,15 +158,26 @@ const vehiculoSchema = new Schema({
   tipo_vehiculo: {
     type: String,
     required: [true, 'El tipo de vehículo es obligatorio.'],
-    enum: { values: ['AVION'], message: 'La plataforma solo admite aviones.' },
-    default: 'AVION',
+    enum: { values: Object.keys(capacidadesMaximas), message: 'Selecciona un tipo de avión válido.' },
   },
   capacidad_asientos: {
     type: Number,
     required: [true, 'La capacidad es obligatoria.'],
     min: [1, 'La capacidad debe ser al menos 1.'],
     max: [150, 'La capacidad no puede superar 150 asientos.'],
-    validate: { validator: Number.isInteger, message: 'La capacidad debe ser un número entero.' },
+    validate: [
+      { validator: Number.isInteger, message: 'La capacidad debe ser un número entero.' },
+      {
+        validator(capacidad) {
+          const tipo = this.tipo_vehiculo
+            ?? this.get?.('tipo_vehiculo')
+            ?? this.getUpdate?.()?.$set?.tipo_vehiculo
+            ?? this.getUpdate?.()?.tipo_vehiculo;
+          return !tipo || capacidad <= capacidadesMaximas[tipo];
+        },
+        message: 'La capacidad supera el máximo permitido para el tipo de avión.',
+      },
+    ],
   },
   asientos: {
     type: [asientoSchema],

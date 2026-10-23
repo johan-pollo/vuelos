@@ -1,151 +1,85 @@
-# Backend de tiquetes
+# AeroJoher — Backend
+
+API REST JSON de AeroJoher. Express concentra las rutas y manejadores en `server.js`; Mongoose define modelos/validaciones y reutiliza la conexión del driver MongoDB oficial. No existe una capa de controladores separada.
 
 ## Tecnologías
 
-- **Node.js** ejecuta JavaScript en el servidor y **Express 5** organiza la API REST mediante rutas y middleware.
-- **MongoDB** conserva los documentos; **MongoDB Node.js Driver 6.20** abre la conexión y **Mongoose 8** define esquemas, valida datos e índices únicos.
-- **Vue 3** construye las vistas reactivas del navegador y **Axios** consume la API, adjuntando el token JWT.
-- **bcryptjs** crea hashes de contraseña; **jsonwebtoken** firma y verifica sesiones; `auth.js` autoriza los roles `ADMIN` y `CLIENTE`.
-- **dotenv** carga la configuración privada desde `backend/.env`, excluido de Git. No se deben publicar URI, contraseñas ni secretos.
+Versiones declaradas en `package.json`: Express `^5.1.0`, MongoDB Node.js Driver `6.20.0`, Mongoose `^8.18.0`, `bcryptjs` `^3.0.3`, `jsonwebtoken` `^9.0.3`, `cors` `^2.8.5` y `dotenv` `^17.2.2`. JavaScript CommonJS sobre Node.js.
 
-## Cliente oficial de MongoDB
+## Archivos principales
 
-`backend/db.js` implementa `connectToMongoDB()` y `disconnectFromMongoDB()` con `MongoClient`. Al conectar, selecciona la base `vuelos`, ejecuta `ping` y entrega ese mismo cliente a `mongoose.connection.setClient(client)`. Así la app usa el driver oficial que compartiste y conserva los modelos Mongoose sin abrir dos conexiones. El servidor, `seed.js` y `create-admin.js` reutilizan esos helpers.
+| Archivo | Responsabilidad |
+| --- | --- |
+| `server.js` | Express, CORS/JSON, rutas, lógica de negocio, errores y ciclo de vida |
+| `auth.js` | JWT Bearer, autenticación opcional y autorización por rol |
+| `db.js` | `MongoClient`, conexión/ping y cliente compartido con Mongoose |
+| `models.js` | Esquemas, campos estrictos, validaciones e índices |
+| `vuelosdb.js` | Script de esquema Mongo alternativo, no ejecutado por el servidor |
+| `seed.js` | Datos demo idempotentes |
+| `create-admin.js` | Crear/actualizar el administrador con hash de contraseña |
+| `.env.example` | Nombres de variables de configuración; `.env` privado |
 
-La aplicación carga variables con CommonJS (`require`), por eso la importación equivalente es:
+Colecciones: `usuarios`, `clientes`, `rutas`, `vehiculos`, `viajes`, `reservas`, `boletos`. Los asientos se embeben en vehículos. Índices únicos protegen correo, username, rutas, matrículas y asiento por viaje; las tarifas se calculan en servidor.
 
-```js
-const { MongoClient } = require('mongodb');
+## Roles y reglas
+
+- **CLIENTE:** consulta vuelos y mapa autenticado, crea y consulta sus reservas, paga/cancela sus reservas, actualiza pasajeros antes del límite y mantiene su perfil.
+- **ADMIN:** administra rutas, vehículos, vuelos y clientes; consulta todas las reservas; puede reservar y pagar para un cliente.
+
+Las rutas protegidas requieren JWT `Bearer` (vigencia 8 horas); las operaciones admin requieren rol `ADMIN`. El backend vuelve a validar campos, disponibilidad, propiedad y fechas. Un pasajero se puede modificar y una reserva cancelar con al menos 3 horas de anticipación. Las reservas pendientes vencen al empezar alguno de sus viajes y el servidor las revisa al iniciar y cada 15 segundos.
+
+La tarifa base es Económica; Ejecutiva aplica `1.5` y Primera `2`. El pago acepta tarjeta simulada de 16 dígitos, marca el pago completado y confirma la reserva, pero no procesa cobros reales ni almacena el número.
+
+## API principal
+
+Todos los endpoints llevan prefijo `/api`. Salvo salud, registro/login y consulta pública de vuelos, requieren sesión; las rutas de catálogo/admin requieren rol administrador.
+
+| Método y ruta | Función |
+| --- | --- |
+| `GET /health`, `GET /estado` | Salud de Express y conexión MongoDB |
+| `POST /auth/registro`, `POST /auth/login` | Registro cliente y autenticación de ambos roles |
+| `GET/PATCH/DELETE /auth/me` | Consultar, actualizar o eliminar cuenta (eliminación cliente) |
+| `PATCH /auth/me/password` | Cambio de contraseña |
+| `GET /viajes` | Vuelos; público/cliente ve programados futuros, ADMIN ve todos |
+| `GET /viajes/:id/asientos` | Mapa de asiento, clase, precio y disponibilidad |
+| `GET /ciudades-aeropuerto`, `GET/POST /rutas`, `PUT/DELETE /rutas/:id` | Catálogo de rutas (ADMIN) |
+| `GET/POST /vehiculos`, `PUT/DELETE /vehiculos/:id` | Vehículos/asientos (ADMIN) |
+| `GET/DELETE /usuarios`, `POST/DELETE /viajes` | Gestión de clientes y vuelos (ADMIN) |
+| `PATCH /viajes/:id/cancelar` | Cancelar viaje antes de salida (ADMIN) |
+| `POST /reservas`, `GET /reservas`, `GET /reservas/count` | Crear y consultar reservas; ADMIN puede reservar para un cliente |
+| `POST /reservas/:id/pagar` | Simular pago propio o admin |
+| `PATCH /reservas/:id/pasajeros`, `POST /reservas/:id/cancelar` | Editar pasajeros o cancelar reserva propia |
+
+La reserva acepta ida y regreso opcional, con 1–10 asientos por trayecto. Respuestas comunes: `400` validación, `401` falta/expiración de sesión, `403` permisos, `404` no encontrado, `409` duplicado/conflicto y `503` MongoDB no disponible.
+
+## Configuración segura
+
+Requiere Node.js/npm y MongoDB local o Atlas. Copia `.env.example` a `.env` y configura variables privadas; no subas `.env` ni valores reales a Git:
+
+```dotenv
+PORT=3000
+MONGODB_URI=<URI_PRIVADA_DE_MONGODB>
+MONGODB_DB_NAME=vuelos
+MONGODB_DNS_SERVERS=
+JWT_SECRET=<CLAVE_ALEATORIA_LARGA>
+ADMIN_EMAIL=<CORREO_ADMIN>
+ADMIN_PASSWORD=<CONTRASENA_SEGURA>
 ```
 
-## Colecciones
+`MONGODB_URI` es obligatoria; el nombre predeterminado de base de datos es `vuelos`. DNS alternativos son opcionales. Si no se configura `JWT_SECRET`, se genera uno aleatorio al arrancar y las sesiones dejan de ser válidas tras reiniciar: defínelo de forma persistente en despliegues. La contraseña de administrador debe tener entre 10 y 72 bytes.
 
-- `usuarios`: correo, nombre de usuario, hash de contraseña, rol (`ADMIN` o `CLIENTE`) y perfil asociado.
-- `clientes`: documento de identidad único, nombre, apellido, correo único y teléfono.
-- `rutas`: origen, destino y duración; la combinación origen/destino es única.
-- `vehiculos`: placa única, tipo fijo `AVION` y asientos embebidos. Cada asiento tiene ubicación y clase independiente (`ECONOMICA`, `EJECUTIVA` o `PRIMERA`); la capacidad debe coincidir con los asientos definidos.
-- `viajes`: referencias a ruta y vehículo, fechas, precio y estado.
-- `reservas`: cliente, código de consulta, viaje de ida y, opcionalmente, viaje de regreso; conserva boletos, total, estado e información del pago.
-- `boletos`: cliente, reserva, trayecto, asiento, precio y, opcionalmente, los datos del pasajero asignado. El índice único `{ viaje, numero_asiento }` impide vender el mismo asiento dos veces.
-
-Los asientos se guardan como documentos embebidos dentro de `vehiculos`, no en una colección MongoDB independiente. Los registros antiguos sin `clase_asiento` se leen como económicos; al editar una nave desde el panel, la clase se guarda explícitamente.
-
-## Esquema alternativo para MySQL Workbench
-
-El archivo `vuelos_mysql_workbench.sql` define un esquema relacional equivalente para MySQL 8.0. Al ejecutarlo en Workbench crea la base `vuelos_mysql` y las tablas con claves foráneas, restricciones e índices. Es únicamente una propuesta de estructura: la aplicación actual usa MongoDB y requiere una migración específica para conectarse a MySQL; ejecutar el script no migra los documentos ni cambia el backend. Para aplicar las restricciones `CHECK`, se recomienda MySQL 8.0.16 o posterior.
-
-Las contraseñas se almacenan con bcrypt, nunca como texto plano. La API obtiene el rol desde la cuenta guardada y filtra las reservas del cliente por su perfil. Los pagos se crean como `PENDIENTE`; el backend ofrece una simulación de pago con tarjetas de prueba, sin procesador externo ni almacenamiento de datos de tarjeta.
-
-## Elegir Mongo local o Atlas
-
-Son dos servidores distintos; se usa uno u otro en `MONGODB_URI`:
-
-- **MongoDB local:** `mongodb://127.0.0.1:27017/`. Debe estar instalado y ejecutándose en el computador. La aplicación selecciona la base `vuelos` con `MONGODB_DB_NAME`, y Mongo la crea cuando se insertan los primeros documentos. No se configura una IP en Atlas para esta conexión.
-- **MongoDB Atlas:** usa la URI `mongodb+srv://...` de tu clúster. `MONGODB_DB_NAME=vuelos` selecciona la base aunque el URI no incluya el nombre al final.
-
-En Atlas, permite la IP del computador:
-
-1. Entra a [MongoDB Atlas](https://cloud.mongodb.com/) y selecciona el proyecto del clúster.
-2. Abre **Security → Network Access → IP Access List**.
-3. Pulsa **Add IP Address → Add Current IP Address**, agrega una descripción y confirma.
-4. Espera a que la regla aparezca activa. Si cambia tu red o IP pública, actualiza la lista.
-5. En **Security → Database Access**, confirma que el usuario de base de datos exista y tenga permisos de lectura/escritura para la base.
-
-No uses `0.0.0.0/0` como configuración permanente: permite intentos de conexión desde cualquier IP. Si una contraseña incluye caracteres especiales, codifícalos para URL. La URI y las claves nunca deben ir en el frontend, en `server.js` ni en Git.
-
-Edita el `.env` que ya creaste. Si necesitas partir de la plantilla, copia `backend/.env.example` únicamente cuando todavía no exista `.env`. Configura `MONGODB_URI`, `MONGODB_DB_NAME=vuelos`, `JWT_SECRET`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` con valores propios. Usa una clave JWT larga y aleatoria, y una contraseña de administrador segura.
-
-## Ejecutar
-
-En PowerShell, desde la raíz del proyecto:
+## Instalación y ejecución
 
 ```powershell
 cd backend
-npm install
-npm run seed
-npm run admin:create
-npm run dev
+npm ci
+npm run seed          # opcional; crea ruta Bogotá–Medellín, nave/viaje demo
+npm run admin:create  # requiere ADMIN_EMAIL y ADMIN_PASSWORD
+npm run dev           # node --watch server.js
 ```
 
-`npm run seed` crea de forma idempotente una ruta Bogotá-Medellín, un avión de 12 asientos y un viaje de demostración. Al iniciar, el backend migra las naves antiguas a tipo `AVION`. `npm run admin:create` guarda un administrador desde `ADMIN_EMAIL` y `ADMIN_PASSWORD`. Si la cuenta ADMIN ya existe, el comando actualiza su hash; no convierte una cuenta CLIENTE en administradora.
+`npm start` ejecuta `node server.js`; API local por defecto: `http://localhost:3000/api`. Salud: `GET http://localhost:3000/api/health`. En desarrollo, ejecuta la interfaz por separado; consulta el [README principal](../README.md).
 
-En una segunda terminal:
+## Pruebas y despliegue
 
-```powershell
-cd frontend/Vuelos
-npm install
-npm run dev
-```
-
-Abre la URL de Vite, normalmente `http://localhost:5173`. El campo `VITE_API_URL` permite cambiar la dirección de la API; por defecto es `http://localhost:3000/api`.
-
-## Permisos
-
-- **ADMIN:** crear, modificar y eliminar rutas sin viajes asociados; crear y modificar aviones y sus asientos, y eliminar naves sin viajes asociados; crear y eliminar viajes sin historial de reserva; cancelar vuelos antes de su salida; reservar y pagar asientos a nombre de un cliente; consultar todas las reservas; eliminar clientes únicamente cuando no tengan reservas.
-- **CLIENTE:** registrarse o iniciar sesión, consultar viajes y asientos, reservar o cancelar sus propias reservas, editar pasajeros hasta 3 horas antes de la salida y eliminar su cuenta únicamente sin reservas activas ni pagos pendientes, revalidando su contraseña actual.
-
-La interfaz oculta controles no permitidos, y el backend también los rechaza: no se debe confiar solo en los controles del navegador. Sin token, la API protegida responde `401`; con un rol sin permiso responde `403`.
-
-El precio base del viaje corresponde a clase económica; ejecutiva aplica factor `1.5` y primera clase factor `2`. El servidor calcula el importe de cada boleto y el total. El panel muestra clase e importe y pide confirmación antes de crear la reserva. El backend simula el pago por tarjeta; no se conecta a una pasarela real.
-
-Al cancelar una reserva, el backend conserva el registro histórico con estado `CANCELADA` y elimina sus boletos. El mapa de asientos deriva la ocupación de esos boletos, así que quedan disponibles otra vez. El índice único sigue protegiendo las compras concurrentes.
-
-Las reservas con pago `PENDIENTE` se cancelan automáticamente al llegar la salida de cualquiera de sus trayectos; el backend revisa cada 15 segundos y también al iniciar, y libera sus asientos.
-
-## Vistas del frontend
-
-- **CLIENTE:** la API ofrece un único `POST /api/auth/login` para clientes y administradores; el rol de la cuenta determina los permisos. El registro acepta `username` opcional; si no se envía, el servidor crea uno a partir del correo. Los visitantes pueden consultar vuelos reales programados en la página de inicio y `/vuelos`; reservar continúa requiriendo inicio de sesión. El flujo admite ida y regreso, selección de asientos por clase y captura de datos de pasajeros. El precio se calcula en el servidor. La reserva queda con pago `PENDIENTE` hasta invocar la simulación de pago.
-- **CLIENTE:** `/mis-reservas` muestra únicamente sus reservas, filtra por estado y permite pagar las pendientes. Los datos de pasajeros son de solo lectura y se pueden habilitar para edición hasta 3 horas antes de la salida. `/consultar-reserva` permite buscar por código sin mostrar datos personales. `/mi-cuenta` permite editar el perfil, cambiar contraseña y eliminar la cuenta revalidando la contraseña actual y sujeto a las restricciones del servidor.
-- **ADMIN:** `/admin/rutas` crea, modifica y elimina rutas con listas desplegables alimentadas por `GET /api/ciudades-aeropuerto`; no se elimina una ruta con viajes asociados. `/admin/naves` crea y modifica aviones, configurando cada asiento y su clase; el tipo es siempre `AVION`. Solo se elimina una nave que no tenga viajes asociados.
-- **ADMIN:** `/admin/vuelos/nuevo` crea viajes usando rutas y naves existentes; la llegada se calcula automáticamente con la duración estimada de la ruta. El estado se deriva de las fechas y se puede cancelar manualmente solo antes de la salida. La lista administrativa se ordena por creación descendente y ofrece filtros por origen, destino, nave, fecha y estado. `/admin/reservar` permite reservar y pagar un asiento a nombre de un cliente. `/admin/reservas` consulta todas las reservas y `/admin/usuarios` permite eliminar clientes que no tengan reservas.
-
-## Rutas principales
-
-- `GET /api/health` y `GET /api/estado`: salud pública de Express y ping a MongoDB; responde `503` si la base no está lista.
-- `POST /api/auth/registro`: crea una cuenta `CLIENTE`, su perfil y un nombre de usuario único; `username` se puede enviar explícitamente.
-- `POST /api/auth/login`: autentica ambos roles en el mismo endpoint; responde `404` con `code: ACCOUNT_NOT_FOUND` si no existe el correo y `401` con `code: INVALID_PASSWORD` si la contraseña no coincide. `GET /api/auth/me`, `PATCH /api/auth/me`, `PATCH /api/auth/me/password` y `DELETE /api/auth/me`: consulta/edición de perfil y cambio de contraseña; la eliminación de cuenta requiere `{ "contrasena_actual": "..." }` y se valida con el hash almacenado.
-- `GET /api/viajes`: público y limitado a viajes `PROGRAMADO` con salida actual o futura para visitantes y clientes; ADMIN autenticado recibe todos los viajes, incluidos los pasados y cancelados. `GET /api/viajes/:id/asientos` requiere sesión autenticada.
-- `GET /api/ciudades-aeropuerto`, `GET /api/rutas`, `POST/PUT/DELETE /api/rutas`: catálogo y mantenimiento exclusivo de ADMIN; no se borra una ruta usada por viajes.
-- `GET /api/vehiculos`, `POST/PUT/DELETE /api/vehiculos`: mantenimiento de naves y clases de asientos exclusivo de ADMIN; no se borra una nave usada por viajes.
-- `GET/DELETE /api/usuarios`: listado y eliminación de clientes sin reservas, exclusivo de ADMIN.
-- `POST/DELETE /api/viajes`: crear y eliminar viajes, exclusivo de ADMIN; no se eliminan viajes con historial de reservas o boletos. `PATCH /api/viajes/:id/cancelar` cancela un vuelo solo antes de su salida.
-- `POST /api/reservas`: reservar de 1 a 10 asientos requiere sesión como CLIENTE. ADMIN puede incluir `cliente` para registrar una reserva a nombre del cliente seleccionado. Se puede agregar `regreso: { viaje, asientos }` para reservar un trayecto inverso que salga después de la llegada de ida; las tarifas se calculan para ambas piernas en el servidor.
-- `POST /api/reservas/:id/pagar`: simula el pago de una reserva propia, o de cualquier reserva por ADMIN, con `{ "metodo_pago": "TARJETA", "numero_tarjeta": "1234567890123456" }`. Cualquier secuencia de 16 dígitos (también escrita con espacios o guiones) se aprueba, sin validar que la tarjeta exista o sea real. Datos ausentes o un número con menos o más de 16 dígitos responden `400`. No se almacena el número enviado. El pago queda `COMPLETADO` y la reserva `CONFIRMADA`; responde `409` si ya se pagó o se canceló. No existe reembolso simulado.
-- `GET /api/reservas?limite=8`: ADMIN ve todas; CLIENTE ve solo las propias. `GET /api/reservas/codigo/:codigo` permite consultar públicamente estado, trayectos y asientos mediante un código aleatorio de 128 bits; no entrega datos personales del cliente o pasajeros.
-- `PATCH /api/reservas/:id/pasajeros`: permite al dueño autenticado guardar los datos de un pasajero por boleto, identificando cada boleto por su id, con al menos 3 horas de anticipación a la salida. `POST /api/reservas/:id/cancelar` solo permite cancelar reservas propias y aplica el límite de anticipación a las salidas de todos sus trayectos.
-
-El cambio de perfil acepta cualquier subconjunto de `username`, `nombre`, `apellido` y `telefono`. El cambio de contraseña recibe `contrasena_actual` y `contrasena_nueva`; se conserva la sesión actual y se valida la contraseña antes de reemplazar su hash.
-
-Ejemplo de reserva de ida y regreso, con los pasajeros ligados a los asientos de cada trayecto:
-
-```json
-{
-  "viaje": "ID_VIAJE_IDA",
-  "asientos": ["1A"],
-  "pasajeros": [
-    { "numero_asiento": "1A", "nombre": "Ana", "apellido": "Pérez", "documento_identidad": "12345678" }
-  ],
-  "regreso": {
-    "viaje": "ID_VIAJE_REGRESO",
-    "asientos": ["2A"],
-    "pasajeros": [
-      { "numero_asiento": "2A", "nombre": "Ana", "apellido": "Pérez", "documento_identidad": "12345678" }
-    ]
-  }
-}
-```
-
-Si no se envían pasajeros al crear la reserva, se pueden guardar después con `PATCH /api/reservas/:id/pasajeros`, usando `pasajeros: [{ boleto, nombre, apellido, documento_identidad }]`. La consulta pública usa el código devuelto al crear una reserva; las reservas antiguas, creadas antes de incorporar códigos, no tienen código consultable.
-
-Mongoose y la API validan roles, campos extra, enums, tipos, longitudes, correo, teléfono, fechas, precios, capacidad y referencias. Los datos inválidos responden `400`; asientos o datos duplicados responden `409`; la base desconectada responde `503`.
-
-El índice único de MongoDB protege contra dos compras simultáneas del mismo asiento, también en una instancia local standalone. Ante un fallo durante la escritura de una reserva, el backend limpia los documentos parciales. MongoDB local no necesita transacciones para ejecutar el proyecto.
-
-## Prueba rápida
-
-1. Confirma que `http://localhost:3000/api/health` indique Express y MongoDB conectados.
-2. Inicia sesión como ADMIN, crea una ruta eligiendo dos ciudades con aeropuerto y configura una nave con asientos de una o más clases.
-3. Crea un viaje para esa ruta y nave.
-4. Registra o inicia sesión como CLIENTE, selecciona un vuelo y filtra sus asientos por clase.
-5. Crea una reserva y usa `POST /api/reservas/:id/pagar` con cualquier número de tarjeta de 16 dígitos; verifica el pago aprobado en la respuesta y consulta la reserva. Los datos incompletos o un número con longitud incorrecta deben responder `400`. La ruta de pago está disponible en el backend; no se agregó una pantalla ni integración en el frontend. Intenta seleccionar un asiento ya ocupado: el servidor debe responder `409`.
-6. Inicia sesión como ADMIN para revisar reservas y clientes; la eliminación de un usuario con reservas debe ser rechazada.
+No hay scripts de pruebas ni lint declarados en el manifiesto. La comprobación de extremo a extremo requiere backend, MongoDB, cuenta ADMIN y vuelos disponibles. No se encontró URL ni configuración de hosting. Para producción, configurar `PORT`, URI MongoDB, secreto JWT persistente y políticas CORS apropiadas al dominio de la interfaz.

@@ -40,8 +40,8 @@ db.createCollection("vehiculos", {
          required: ["placa_o_matricula", "tipo_vehiculo", "capacidad_asientos"],
          properties: {
             placa_o_matricula: { bsonType: "string" },
-            tipo_vehiculo: { enum: ["AVION"] },
-            capacidad_asientos: { bsonType: "int" },
+            tipo_vehiculo: { enum: ["REGIONAL", "MEDIANO", "GRANDE"] },
+            capacidad_asientos: { bsonType: "int", minimum: 1, maximum: 150 },
             asientos: {
                bsonType: "array",
                items: {
@@ -50,7 +50,12 @@ db.createCollection("vehiculos", {
                   properties: {
                      numero_asiento: { bsonType: "string" },
                      ubicacion: { bsonType: "string" }
-                  }
+                  },
+                  oneOf: [
+                     { properties: { tipo_vehiculo: { enum: ["REGIONAL"] }, capacidad_asientos: { maximum: 50 } } },
+                     { properties: { tipo_vehiculo: { enum: ["MEDIANO"] }, capacidad_asientos: { maximum: 100 } } },
+                     { properties: { tipo_vehiculo: { enum: ["GRANDE"] }, capacidad_asientos: { maximum: 150 } } }
+                  ]
                }
             }
          }
