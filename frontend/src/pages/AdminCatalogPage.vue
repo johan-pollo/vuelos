@@ -377,7 +377,7 @@ function confirmDeleteCustomer(customer) {
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
-        <BotonVolverResumen />
+          <BotonVolverResumen />
           <p class="eyebrow">Administración</p>
           <h2>{{ sectionTitle }}</h2>
           <p class="admin-subtitle">{{ {
