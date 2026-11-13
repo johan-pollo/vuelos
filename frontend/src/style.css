@@ -1189,6 +1189,18 @@ p {
   align-self: flex-end;
 }
 
+.page-header:has(.back-button-wrapper) {
+  justify-content: flex-start;
+}
+
+.page-header:has(.back-button-wrapper) > .admin-actions {
+  margin-left: auto;
+}
+
+.page-header.back-left-header {
+  justify-content: flex-start;
+}
+
 .compact-header {
   margin-bottom: 18px;
 }
@@ -3472,6 +3484,14 @@ p {
     align-items: stretch;
   }
 
+  .page-header.back-left-header .back-navigation {
+    align-self: flex-start;
+  }
+
+  .page-header:has(.back-button-wrapper) > .admin-actions {
+    margin-left: 0;
+  }
+
   .auth-form-footer {
     flex-wrap: wrap;
   }
@@ -3489,6 +3509,10 @@ p {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .flights-toolbar.back-left-header {
+    justify-content: flex-start;
   }
 
   .flights-heading {

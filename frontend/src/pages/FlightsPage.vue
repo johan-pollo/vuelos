@@ -136,9 +136,9 @@ function formatCurrency(value) {
 
 <template>
   <q-page class="page-shell">
-    <div class="page-header flights-toolbar">
-      <h2 class="eyebrow flights-page-title">Vuelos disponibles</h2>
+    <div class="page-header flights-toolbar back-left-header">
       <q-btn flat color="primary" icon="arrow_back" label="Inicio" to="/" class="flights-home-button back-navigation" />
+      <h2 class="eyebrow flights-page-title">Vuelos disponibles</h2>
     </div>
 
     <div class="flight-filters">

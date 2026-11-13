@@ -3,11 +3,13 @@
     <div class="admin-shell admin-dashboard-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
+          <div class="admin-dashboard-back">
+            <q-btn flat icon="arrow_back" label="Volver al sitio" @click="router.push({ name: 'home' })" class="back-navigation" />
+          </div>
           <p class="eyebrow">Administración</p>
           <h2 class="admin-dashboard-title">Dashboard administrativo</h2>
           <p class="admin-subtitle">Gestiona vuelos, reservas, rutas, naves y clientes.</p>
         </div>
-        <q-btn flat icon="arrow_back" label="Volver al sitio" @click="router.push({ name: 'home' })" class="back-navigation" />
       </div>
 
 
@@ -89,6 +91,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.admin-dashboard-back {
+  margin-bottom: 10px;
+}
+
 .admin-hero {
   display: flex;
   flex-wrap: wrap;

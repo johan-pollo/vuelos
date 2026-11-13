@@ -21,6 +21,8 @@ defineProps({
 
 <style scoped>
 .back-button-wrapper {
-  display: contents;
+  display: flex;
+  width: fit-content;
+  margin-bottom: 10px;
 }
 </style>

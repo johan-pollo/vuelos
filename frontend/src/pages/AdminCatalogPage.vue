@@ -377,6 +377,7 @@ function confirmDeleteCustomer(customer) {
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
+        <BotonVolverResumen />
           <p class="eyebrow">Administración</p>
           <h2>{{ sectionTitle }}</h2>
           <p class="admin-subtitle">{{ {
@@ -385,7 +386,6 @@ function confirmDeleteCustomer(customer) {
             clientes: 'Consulta, filtra y administra las cuentas de clientes.',
           }[props.section] }}</p>
         </div>
-        <BotonVolverResumen />
       </div>
 
       <div v-if="loading" class="state-box"><q-spinner-dots color="primary" size="40px" /><p>Cargando catálogos...</p></div>

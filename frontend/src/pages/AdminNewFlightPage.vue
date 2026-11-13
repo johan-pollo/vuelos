@@ -92,8 +92,10 @@ async function submit() {
   <q-page class="page-shell admin-page-shell">
     <div class="form-card admin-form-shell shadow-2">
       <div class="page-header compact-header">
-        <EncabezadoCompacto show-eyebrow eyebrow="Administración" title="Crear nuevo viaje" />
-        <BotonVolverResumen />
+        <div>
+          <BotonVolverResumen />
+          <EncabezadoCompacto show-eyebrow eyebrow="Administración" title="Crear nuevo viaje" />
+        </div>
       </div>
 
       <q-form novalidate @submit.prevent="submit">

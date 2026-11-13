@@ -146,12 +146,12 @@ function continueBooking() {
     </div>
 
     <q-card v-else class="detail-card shadow-3">
-      <div class="page-header compact-header">
+      <div class="page-header compact-header back-left-header">
+        <q-btn flat color="primary" label="Volver" :to="{ name: 'flights' }" class="back-navigation" />
         <div>
           <p class="eyebrow">Vuelo</p>
           <h2 class="selected-flight-route"><span>{{ flight.ruta?.origen }}</span><q-icon name="arrow_forward" color="primary" /><span>{{ flight.ruta?.destino }}</span></h2>
         </div>
-        <q-btn flat color="primary" label="Volver" :to="{ name: 'flights' }" class="back-navigation" />
       </div>
 
       <div class="detail-grid">

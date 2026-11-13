@@ -95,10 +95,10 @@ function passengerForSeat(seatNumber) {
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
+          <BotonVolverResumen />
           <p class="eyebrow">Administración</p>
           <h2>Reservas</h2>
         </div>
-        <BotonVolverResumen />
       </div>
 
       <div v-if="loading" class="state-box">

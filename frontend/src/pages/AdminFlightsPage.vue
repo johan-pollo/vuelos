@@ -105,11 +105,11 @@ function formatCurrency(value) {
     <div class="admin-shell shadow-2">
       <div class="page-header admin-page-header">
         <div>
+          <BotonVolverResumen />
           <p class="eyebrow">Administración</p>
           <h2>Gestión de vuelos</h2>
         </div>
         <div class="admin-actions">
-          <BotonVolverResumen />
           <q-btn color="primary" label="Nuevo vuelo" :to="{ name: 'admin-new-flight' }" />
         </div>
       </div>

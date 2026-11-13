@@ -124,9 +124,19 @@ async function createReservation() {
   <q-page class="page-shell admin-page-shell">
     <div class="form-card admin-form-shell shadow-2">
       <div class="page-header compact-header">
-        <EncabezadoCompacto show-eyebrow eyebrow="Administración" title="Reservar un asiento" />
-        <BotonVolverResumen />
+        <div>
+          <BotonVolverResumen />
+          <EncabezadoCompacto show-eyebrow eyebrow="Administración" title="Reservar un asiento" />
+        </div>
       </div>
+      <!-- ANTES 
+          <q-btn 
+          flat
+          icon="arrow_back"
+          label="Volver al resumen"
+          :to="{ name: 'admin-dashboard' }"
+          class="back-navigation"
+          /> -->
 
       <q-banner rounded class="bg-blue-1 text-blue-10 q-mb-lg">
         La reserva y el pago quedarán registrados a nombre del cliente seleccionado.
