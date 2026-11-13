@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { Notify } from 'quasar'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useRouter } from 'vue-router'
 import { useBookingStore } from '../stores/bookingStore'
 import { useAuthStore } from '../stores/authStore'
@@ -98,9 +99,7 @@ function proceed() {
   <q-page class="page-shell">
     <div class="form-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <h2>Datos del pasajero</h2>
-        </div>
+        <EncabezadoCompacto title="Datos del pasajero" />
       </div>
       <p class="text-grey-7 q-mb-md">Asocia el nombre y el documento de identidad de cada pasajero a su asiento.</p>
 

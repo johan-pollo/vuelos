@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useBookingStore } from '../stores/bookingStore'
 import { useFlightStore } from '../stores/flightStore'
 import { formatDuration } from '../utils/formatters'
@@ -102,10 +103,7 @@ const balanceTotal = computed(() => {
   <q-page class="page-shell">
     <div class="summary-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Tiquete</p>
-          <h2>Reserva confirmada</h2>
-        </div>
+        <EncabezadoCompacto show-eyebrow eyebrow="Tiquete" title="Reserva confirmada" />
       </div>
 
       <q-card class="ticket-card q-pa-lg">

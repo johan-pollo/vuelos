@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Dialog, Notify } from 'quasar'
+import BotonVolverResumen from '../components/BotonVolverResumen.vue'
 import api from '../services/api'
 import { formatDuration } from '../utils/formatters'
 import { integerRangeRule, lengthRule, optionalIntegerRangeRule, requiredRule } from '../utils/validationRules'
@@ -384,7 +385,7 @@ function confirmDeleteCustomer(customer) {
             clientes: 'Consulta, filtra y administra las cuentas de clientes.',
           }[props.section] }}</p>
         </div>
-        <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
+        <BotonVolverResumen />
       </div>
 
       <div v-if="loading" class="state-box"><q-spinner-dots color="primary" size="40px" /><p>Cargando catálogos...</p></div>
@@ -412,8 +413,8 @@ function confirmDeleteCustomer(customer) {
               <q-item-section>{{ route.origen }} → {{ route.destino }} · {{ formatDuration(route.duracion_estimada_min) }}</q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
-                  <q-btn flat color="primary" icon="edit" label="Editar" @click="editRoute(route)" />
-                  <q-btn flat color="negative" icon="delete" label="Eliminar" @click="confirmDeleteRoute(route)" />
+                  <q-btn flat round color="primary" icon="edit" aria-label="Editar ruta" title="Editar ruta" @click="editRoute(route)" />
+                  <q-btn flat round color="negative" icon="delete" aria-label="Eliminar ruta" title="Eliminar ruta" @click="confirmDeleteRoute(route)" />
                 </div>
               </q-item-section>
             </q-item>
@@ -487,10 +488,10 @@ function confirmDeleteCustomer(customer) {
               </q-item-section>
               <q-item-section side>
                 <div class="admin-actions">
-                  <q-btn flat color="primary" icon="edit" label="Editar" :disable="vehicle.tiene_asientos_reservados" @click="editVehicle(vehicle)">
+                  <q-btn flat round color="primary" icon="edit" aria-label="Editar nave" title="Editar nave" :disable="vehicle.tiene_asientos_reservados" @click="editVehicle(vehicle)">
                     <q-tooltip v-if="vehicle.tiene_asientos_reservados">No se puede modificar una nave con asientos reservados.</q-tooltip>
                   </q-btn>
-                  <q-btn flat color="negative" icon="delete" label="Eliminar" @click="confirmDeleteVehicle(vehicle)" />
+                  <q-btn flat round color="negative" icon="delete" aria-label="Eliminar nave" title="Eliminar nave" @click="confirmDeleteVehicle(vehicle)" />
                 </div>
               </q-item-section>
             </q-item>
@@ -515,8 +516,8 @@ function confirmDeleteCustomer(customer) {
                   <q-badge :color="Number(customer.reservas) ? 'primary' : 'grey-6'" rounded>
                     {{ customer.reservas || 0 }} reservas
                   </q-badge>
-                  <q-btn v-if="Number(customer.reservas) > 0" flat color="primary" icon="visibility" label="Ver reservas" @click="showCustomerReservations(customer)" />
-                  <q-btn flat color="negative" icon="delete" label="Eliminar" :disable="Number(customer.reservas) > 0" @click="confirmDeleteCustomer(customer)">
+                  <q-btn v-if="Number(customer.reservas) > 0" flat round color="primary" icon="visibility" aria-label="Ver reservas" title="Ver reservas" @click="showCustomerReservations(customer)" />
+                  <q-btn flat round color="negative" icon="delete" aria-label="Eliminar cliente" title="Eliminar cliente" :disable="Number(customer.reservas) > 0" @click="confirmDeleteCustomer(customer)">
                     <q-tooltip v-if="Number(customer.reservas) > 0">No se puede eliminar un cliente con reservas.</q-tooltip>
                   </q-btn>
                 </div>

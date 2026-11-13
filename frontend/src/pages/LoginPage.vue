@@ -1,16 +1,20 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Dialog, Notify } from 'quasar'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useAuthStore } from '../stores/authStore'
 import { lengthRule, requiredRule } from '../utils/validationRules'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const mode = ref('login')
+const mode = ref(route.query.mode === 'register' ? 'register' : 'login')
 const loading = ref(false)
 const passwordVisible = ref(false)
+watch(() => route.query.mode, value => {
+  mode.value = value === 'register' ? 'register' : 'login'
+})
 const documentTypes = [
   { label: 'Cédula de ciudadanía', value: 'CC' },
   { label: 'Cédula de extranjería', value: 'CE' },
@@ -18,6 +22,13 @@ const documentTypes = [
   { label: 'Permiso por Protección Temporal (PPT)', value: 'PPT' },
   { label: 'Tarjeta de identidad', value: 'TI' },
 ]
+const documentTypeDisplay = {
+  CC: 'C.C.',
+  CE: 'C.E.',
+  PA: 'Pasaporte',
+  PPT: 'PPT',
+  TI: 'T.I.',
+}
 const form = ref({
   tipoDocumento: 'CC',
   numeroDocumento: '',
@@ -104,83 +115,147 @@ async function submit() {
 </script>
 
 <template>
-  <q-page class="page-shell">
-    <div class="form-card shadow-2">
-      <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">AeroJoher</p>
-          <h2>{{ mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta' }}</h2>
+  <q-page class="page-shell login-page">
+    <div class="auth-layout">
+      <div class="form-card auth-form-card shadow-2">
+        <div class="page-header compact-header">
+          <EncabezadoCompacto
+            show-eyebrow
+            eyebrow="AeroJoher"
+            :title="mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'"
+          />
         </div>
+
+        <q-form novalidate @submit.prevent="submit">
+          <div v-if="mode === 'register'" class="form-grid register-grid">
+            <q-input v-model="form.nombre" class="register-name-field" label="Nombres" :rules="nameRules" :lazy-rules="false" outlined dense autocomplete="given-name" />
+            <q-input v-model="form.apellido" class="register-name-field" label="Apellidos" :rules="surnameRules" :lazy-rules="false" outlined dense autocomplete="family-name" />
+            <q-select v-model="form.tipoDocumento" class="register-document-type" :options="documentTypes" :display-value="documentTypeDisplay[form.tipoDocumento]" label="Tipo de documento" outlined dense emit-value map-options />
+            <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" :rules="documentRules" :lazy-rules="false" outlined dense />
+            <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense autocomplete="tel" />
+            <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" :lazy-rules="false" outlined dense autocomplete="email" />
+            <q-input v-model="form.password" class="register-account-field register-password-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="passwordRules" :lazy-rules="false" outlined dense autocomplete="new-password">
+              <template #append>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  :icon="passwordVisible ? 'visibility_off' : 'visibility'"
+                  :aria-label="passwordVisible ? 'Ocultar contraseña' : 'Mantener pulsado para ver la contraseña'"
+                  @pointerdown.prevent="passwordVisible = true"
+                  @pointerup.prevent="passwordVisible = false"
+                  @pointerleave="passwordVisible = false"
+                  @pointercancel="passwordVisible = false"
+                  @keydown.enter.prevent="passwordVisible = true"
+                  @keydown.space.prevent="passwordVisible = true"
+                  @keyup.enter="passwordVisible = false"
+                  @keyup.space="passwordVisible = false"
+                  @blur="passwordVisible = false"
+                />
+              </template>
+            </q-input>
+            <p class="register-password-help">Usa entre 10 y 72 caracteres, con al menos una letra y un número.</p>
+          </div>
+
+          <div v-if="mode === 'login'" class="form-grid login-form-grid">
+            <q-input v-model="form.email" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" :lazy-rules="false" outlined dense autocomplete="email" />
+            <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="mode === 'register' ? passwordRules : [requiredRule('La contraseña'), lengthRule('La contraseña', 1, 72)]" :lazy-rules="false" outlined dense :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
+              <template #append>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  :icon="passwordVisible ? 'visibility_off' : 'visibility'"
+                  :aria-label="passwordVisible ? 'Ocultar contraseña' : 'Mantener pulsado para ver la contraseña'"
+                  @pointerdown.prevent="passwordVisible = true"
+                  @pointerup.prevent="passwordVisible = false"
+                  @pointerleave="passwordVisible = false"
+                  @pointercancel="passwordVisible = false"
+                  @keydown.enter.prevent="passwordVisible = true"
+                  @keydown.space.prevent="passwordVisible = true"
+                  @keyup.enter="passwordVisible = false"
+                  @keyup.space="passwordVisible = false"
+                  @blur="passwordVisible = false"
+                />
+              </template>
+            </q-input>
+          </div>
+
+          <div class="auth-form-footer">
+            <p v-if="mode === 'login'" class="auth-switch">
+              ¿Aún no tienes cuenta?
+              <q-btn type="button" flat dense color="primary" label="Regístrate gratis" @click="mode = 'register'" />
+            </p>
+            <p v-else class="auth-switch">
+              ¿Ya tienes cuenta?
+              <q-btn type="button" flat dense color="primary" label="Inicia sesión" @click="mode = 'login'" />
+            </p>
+            <div class="form-actions">
+              <q-btn type="submit" color="primary" :loading="loading" :disable="loading" :label="mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'" />
+            </div>
+          </div>
+        </q-form>
       </div>
 
-      <q-form novalidate @submit.prevent="submit">
-        <div v-if="mode === 'register'" class="form-grid register-grid">
-          <q-input v-model="form.nombre" class="register-name-field" label="Nombres" :rules="nameRules" outlined dense autocomplete="given-name" />
-          <q-input v-model="form.apellido" class="register-name-field" label="Apellidos" :rules="surnameRules" outlined dense autocomplete="family-name" />
-          <q-select v-model="form.tipoDocumento" class="register-document-type" :options="documentTypes" label="Tipo de documento" outlined dense emit-value map-options />
-          <q-input v-model="form.numeroDocumento" class="register-document-number" label="Número de documento" :rules="documentRules" outlined dense />
-          <q-input v-model="form.telefono" class="register-phone-field" label="Teléfono (opcional)" type="tel" mask="###############" outlined dense autocomplete="tel" />
-          <q-input v-model="form.email" class="register-account-field" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" outlined dense autocomplete="email" />
-          <q-input v-model="form.password" class="register-account-field" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="passwordRules" outlined dense autocomplete="new-password" hint="Usa entre 10 y 72 caracteres, con al menos una letra y un número.">
-            <template #append>
-              <q-btn
-                flat
-                round
-                dense
-                :icon="passwordVisible ? 'visibility_off' : 'visibility'"
-                :aria-label="passwordVisible ? 'Ocultar contraseña' : 'Mantener pulsado para ver la contraseña'"
-                @pointerdown.prevent="passwordVisible = true"
-                @pointerup.prevent="passwordVisible = false"
-                @pointerleave="passwordVisible = false"
-                @pointercancel="passwordVisible = false"
-                @keydown.enter.prevent="passwordVisible = true"
-                @keydown.space.prevent="passwordVisible = true"
-                @keyup.enter="passwordVisible = false"
-                @keyup.space="passwordVisible = false"
-                @blur="passwordVisible = false"
-              />
-            </template>
-          </q-input>
+      <aside class="auth-welcome">
+        <img src="/assets/aerojoher-airplane.jpeg" alt="Avión de AeroJoher en vuelo">
+        <div class="auth-welcome-overlay">
+          <q-icon name="flight_takeoff" />
+          <p class="eyebrow">AeroJoher</p>
+          <h2>Tu próximo viaje empieza aquí.</h2>
+          <p>Encuentra tu ruta y prepárate para volar.</p>
         </div>
-
-        <div v-if="mode === 'login'" class="form-grid">
-          <q-input v-model="form.email" label="Correo electrónico" type="text" inputmode="email" autocapitalize="off" spellcheck="false" :rules="emailRules" outlined dense autocomplete="email" />
-          <q-input v-model="form.password" label="Contraseña" :type="passwordVisible ? 'text' : 'password'" :rules="mode === 'register' ? passwordRules : [requiredRule('La contraseña'), lengthRule('La contraseña', 1, 72)]" outlined dense :autocomplete="mode === 'login' ? 'current-password' : 'new-password'" :hint="mode === 'register' ? 'Usa entre 10 y 72 caracteres, con al menos una letra y un número.' : undefined">
-            <template #append>
-              <q-btn
-                flat
-                round
-                dense
-                :icon="passwordVisible ? 'visibility_off' : 'visibility'"
-                :aria-label="passwordVisible ? 'Ocultar contraseña' : 'Mantener pulsado para ver la contraseña'"
-                @pointerdown.prevent="passwordVisible = true"
-                @pointerup.prevent="passwordVisible = false"
-                @pointerleave="passwordVisible = false"
-                @pointercancel="passwordVisible = false"
-                @keydown.enter.prevent="passwordVisible = true"
-                @keydown.space.prevent="passwordVisible = true"
-                @keyup.enter="passwordVisible = false"
-                @keyup.space="passwordVisible = false"
-                @blur="passwordVisible = false"
-              />
-            </template>
-          </q-input>
-        </div>
-
-        <div class="auth-form-footer">
-          <p v-if="mode === 'login'" class="auth-switch">
-            ¿Aún no tienes cuenta?
-            <q-btn type="button" flat dense color="primary" label="Regístrate gratis" @click="mode = 'register'" />
-          </p>
-          <p v-else class="auth-switch">
-            ¿Ya tienes cuenta?
-            <q-btn type="button" flat dense color="primary" label="Inicia sesión" @click="mode = 'login'" />
-          </p>
-          <div class="form-actions">
-            <q-btn type="submit" color="primary" :loading="loading" :label="mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'" />
-          </div>
-        </div>
-      </q-form>
+      </aside>
     </div>
   </q-page>
 </template>
+
+<style scoped>
+.login-page .auth-layout {
+  width: min(100%, 1400px);
+  max-width: 1400px;
+  margin-right: auto;
+  margin-left: auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-page .auth-form-card,
+.login-page .auth-welcome {
+  height: 100%;
+}
+
+.login-page .register-grid {
+  column-gap: 16px;
+  row-gap: 12px;
+}
+
+.login-page .register-document-type {
+  grid-column: span 6;
+}
+
+.login-page .register-document-number,
+.login-page .register-phone-field {
+  grid-column: span 9;
+}
+
+@media (max-width: 760px) {
+  .login-page .auth-layout {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .login-page .auth-form-card,
+  .login-page .auth-welcome {
+    height: auto;
+  }
+
+  .login-page .register-name-field,
+  .login-page .register-account-field,
+  .login-page .register-document-type,
+  .login-page .register-document-number,
+  .login-page .register-phone-field {
+    grid-column: 1 / -1;
+  }
+}
+</style>

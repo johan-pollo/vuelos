@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
+import BotonVolverResumen from '../components/BotonVolverResumen.vue'
 import api from '../services/api'
 
 const flights = ref([])
@@ -108,7 +109,7 @@ function formatCurrency(value) {
           <h2>Gestión de vuelos</h2>
         </div>
         <div class="admin-actions">
-          <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
+          <BotonVolverResumen />
           <q-btn color="primary" label="Nuevo vuelo" :to="{ name: 'admin-new-flight' }" />
         </div>
       </div>

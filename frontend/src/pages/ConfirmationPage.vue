@@ -2,13 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useBookingStore } from '../stores/bookingStore'
 import { useFlightStore } from '../stores/flightStore'
 
 const router = useRouter()
 const bookingStore = useBookingStore()
 const flightStore = useFlightStore()
-const loading = ref(false)
 const flightsLoading = ref(true)
 const selectedFlight = computed(() => flightStore.flights.find((flight) => flight._id === bookingStore.selectedFlightId) || null)
 const returnFlight = computed(() => flightStore.flights.find((flight) => flight._id === bookingStore.returnFlightId) || null)
@@ -68,16 +68,35 @@ onMounted(async () => {
   }
 })
 
-async function createReservation() {
-  loading.value = true
+function continueToPayment() {
   try {
-    await bookingStore.confirmReservation()
-    Notify.create({ type: 'positive', message: 'Reserva guardada y verificada en Mis reservas. Continúa al pago para confirmar la compra.' })
+    const legs = [
+      {
+        label: 'Ida',
+        flight: selectedFlight.value,
+        seats: bookingStore.selectedSeats,
+        passengers: bookingStore.passengers,
+      },
+      ...(returnFlight.value ? [{
+        label: 'Regreso',
+        flight: returnFlight.value,
+        seats: bookingStore.returnSeats,
+        passengers: bookingStore.returnPassengers,
+      }] : []),
+    ].map(({ label, flight, seats, passengers }) => ({
+      label,
+      route: `${flight.ruta?.origen || '—'} → ${flight.ruta?.destino || '—'}`,
+      departure: formatDateTime(flight.fecha_hora_salida),
+      passengers: passengers.map((passenger, index) => ({
+        name: `${passenger.nombre} ${passenger.apellido}`,
+        seat: seats[index],
+        price: seatDetails(flight, seats[index]).price,
+      })),
+    }))
+    bookingStore.prepareCheckout(total.value, { legs })
     router.push({ name: 'payment' })
   } catch (error) {
-    Notify.create({ type: 'negative', message: error.friendlyMessage || 'No se pudo confirmar la reserva.' })
-  } finally {
-    loading.value = false
+    Notify.create({ type: 'negative', message: error.friendlyMessage || 'No se pudo continuar al pago.' })
   }
 }
 </script>
@@ -86,10 +105,7 @@ async function createReservation() {
   <q-page class="page-shell">
     <div class="summary-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Confirmación</p>
-          <h2>Confirma los datos de tu reserva</h2>
-        </div>
+        <EncabezadoCompacto show-eyebrow eyebrow="Confirmación" title="Confirma los datos de tu reserva" />
       </div>
 
       <div v-if="flightsLoading" class="state-box">
@@ -103,7 +119,7 @@ async function createReservation() {
 
       <template v-else>
         <q-banner class="bg-blue-1 text-blue-10 q-mb-md">
-          Revisa los vuelos, asientos y pasajeros. Al confirmar, continuarás a la pasarela de pago simulada.
+          Revisa los vuelos, asientos y pasajeros. La reserva solo se guardará si el pago se completa correctamente.
         </q-banner>
 
         <div class="summary-box">
@@ -157,7 +173,7 @@ async function createReservation() {
 
       <div class="form-actions">
         <q-btn flat label="Volver" :to="{ name: 'passenger' }" class="back-navigation" />
-        <q-btn color="primary" :loading="loading" :disable="!canConfirmReservation" label="Confirmar reserva y continuar al pago" @click="createReservation" />
+        <q-btn color="primary" :disable="!canConfirmReservation" label="Confirmar datos y continuar al pago" @click="continueToPayment" />
       </div>
     </div>
   </q-page>

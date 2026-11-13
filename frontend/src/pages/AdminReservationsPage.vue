@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Notify } from 'quasar'
+import BotonVolverResumen from '../components/BotonVolverResumen.vue'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import api from '../services/api'
 
 const reservations = ref([])
@@ -96,7 +98,7 @@ function passengerForSeat(seatNumber) {
           <p class="eyebrow">Administración</p>
           <h2>Reservas</h2>
         </div>
-        <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
+        <BotonVolverResumen />
       </div>
 
       <div v-if="loading" class="state-box">
@@ -149,10 +151,12 @@ function passengerForSeat(seatNumber) {
         </q-table>
         <q-card v-if="selectedReservation" flat bordered class="admin-reservation-seat-map q-mt-md">
           <div class="page-header compact-header">
-            <div>
-              <p class="eyebrow">Reserva {{ selectedReservation.codigo_reserva }}</p>
-              <h3>Mapa completo de asientos</h3>
-            </div>
+            <EncabezadoCompacto
+              show-eyebrow
+              :eyebrow="'Reserva ' + selectedReservation.codigo_reserva"
+              title="Mapa completo de asientos"
+              title-tag="h3"
+            />
             <q-btn flat icon="close" label="Cerrar" @click="selectedReservation = null" />
           </div>
           <q-tabs

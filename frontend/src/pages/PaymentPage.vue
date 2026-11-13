@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useRoute, useRouter } from 'vue-router'
-import api from '../services/api'
 import { useBookingStore } from '../stores/bookingStore'
 import { useAuthStore } from '../stores/authStore'
 import { lengthRule, requiredRule } from '../utils/validationRules'
@@ -17,7 +17,10 @@ const securityCode = ref('')
 const expiryDate = ref('')
 
 const reservation = computed(() => bookingStore.reservation)
-const paymentTotal = computed(() => Number(reservation.value?.monto_total || 0))
+const checkoutDraft = computed(() => bookingStore.checkoutDraft)
+const paymentTotal = computed(() => Number(
+  reservation.value?.monto_total ?? checkoutDraft.value?.total ?? 0,
+))
 const maskedCard = computed(() => {
   const lastDigits = cardNumber.value.slice(-4)
   return `•••• •••• •••• ${lastDigits || '••••'}`
@@ -67,23 +70,14 @@ const expiryRules = [
 ]
 const securityCodeRules = [requiredRule('El CVC'), lengthRule('El CVC', 3, 3)]
 
-onMounted(async () => {
-  if (!reservation.value?._id && bookingStore.reservationCode) {
-    try {
-      const { data } = await api.get('/reservas?limite=50')
-      bookingStore.reservation = data.find(item => item.codigo_reserva === bookingStore.reservationCode) || null
-    } catch (error) {
-      Notify.create({ type: 'negative', message: error.friendlyMessage || 'No fue posible recuperar la reserva.' })
-      router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
-      return
-    }
-  }
-
-  if (!reservation.value?._id) {
-    Notify.create({ type: 'warning', message: 'Primero debes crear una reserva para realizar el pago.' })
+onMounted(() => {
+  if (!reservation.value?._id && !checkoutDraft.value) {
+    Notify.create({ type: 'warning', message: 'Confirma los datos del vuelo antes de realizar el pago.' })
     router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
     return
   }
+  if (!reservation.value?._id) return
+
   if (reservation.value.pago?.estado_pago === 'COMPLETADO') {
     router.replace({ name: authStore.isAdmin ? 'admin-reservas' : 'ticket' })
     return
@@ -95,8 +89,8 @@ onMounted(async () => {
 })
 
 async function submitPayment() {
-  if (!reservation.value?._id) {
-    Notify.create({ type: 'negative', message: 'No hay una reserva pendiente para pagar.' })
+  if (!reservation.value?._id && !checkoutDraft.value) {
+    Notify.create({ type: 'negative', message: 'No hay datos de reserva pendientes para pagar.' })
     router.replace({ name: authStore.isAdmin ? 'admin-dashboard' : 'confirmation' })
     return
   }
@@ -115,7 +109,11 @@ async function submitPayment() {
 
   loading.value = true
   try {
-    await bookingStore.payReservation(cardNumber.value)
+    if (reservation.value?._id) {
+      await bookingStore.payReservation(cardNumber.value)
+    } else {
+      await bookingStore.completeCheckout(cardNumber.value)
+    }
     Notify.create({ type: 'positive', message: 'Pago aprobado. Tu reserva está confirmada.' })
     const destination = authStore.isAdmin
       ? { name: 'admin-reservas' }
@@ -138,10 +136,7 @@ async function submitPayment() {
   <q-page class="page-shell">
     <div class="payment-card summary-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Pago seguro · Simulación</p>
-          <h2>Completa el pago con tarjeta</h2>
-        </div>
+        <EncabezadoCompacto show-eyebrow eyebrow="Pago seguro · Simulación" title="Completa el pago con tarjeta" />
         <q-icon name="lock" color="positive" size="26px" aria-label="Formulario seguro" />
       </div>
 
@@ -149,12 +144,29 @@ async function submitPayment() {
         Esta es una simulación de pago. No se realiza ningún cobro real.
       </q-banner>
 
-      <q-banner rounded class="bg-green-1 text-green-10 q-mb-lg">
+      <q-banner v-if="!reservation?._id && checkoutDraft" rounded class="bg-orange-1 text-orange-10 q-mb-lg">
+        <template #avatar>
+          <q-icon name="info" color="orange-8" />
+        </template>
+        La reserva aún no está guardada. Se creará únicamente cuando el pago se complete correctamente.
+      </q-banner>
+
+      <q-banner v-else rounded class="bg-green-1 text-green-10 q-mb-lg">
         <template #avatar>
           <q-icon name="check_circle" color="green-8" />
         </template>
-        <strong>¡Tu reserva ya está creada y confirmada!</strong> Los asientos están separados para ti. Completa el pago a continuación para generar tu boleto.
+        <strong>La reserva ya está creada.</strong> Completa el pago a continuación para generar tu boleto.
       </q-banner>
+
+      <div v-if="!reservation?._id && checkoutDraft?.details?.legs" class="summary-box q-mb-lg">
+        <div v-for="leg in checkoutDraft.details.legs" :key="leg.label" class="summary-item">
+          <strong>Vuelo de {{ leg.label }}</strong><br>
+          {{ leg.route }} · {{ leg.departure }}
+          <div v-for="passenger in leg.passengers" :key="`${leg.label}-${passenger.seat}`" class="q-mt-sm">
+            {{ passenger.name }} · Asiento {{ passenger.seat }} · {{ formatCurrency(passenger.price) }}
+          </div>
+        </div>
+      </div>
 
       <div class="payment-total">
         <span>
@@ -187,6 +199,7 @@ async function submitPayment() {
           type="tel"
           inputmode="numeric"
           autocomplete="cc-number"
+          maxlength="16"
           counter
           @update:model-value="updateCardNumber"
         />
@@ -226,7 +239,7 @@ async function submitPayment() {
             color="primary"
             type="submit"
             :loading="loading"
-            :disable="!reservation?._id"
+            :disable="!reservation?._id && !checkoutDraft"
             icon="lock"
             label="Pagar ahora"
           />

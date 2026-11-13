@@ -21,7 +21,11 @@ const photos = {
   },
 }
 
+const airplaneFallback = {
+  src: '/assets/aerojoher-airplane.jpeg',
+}
+
 export function destinationPhoto(destination) {
   const key = destination?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-  return photos[key] || photos.yopal
+  return photos[key] || airplaneFallback
 }

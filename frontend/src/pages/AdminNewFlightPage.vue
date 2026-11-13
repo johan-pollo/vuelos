@@ -2,6 +2,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { Notify } from 'quasar'
 import { useRouter } from 'vue-router'
+import BotonVolverResumen from '../components/BotonVolverResumen.vue'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useFlightStore } from '../stores/flightStore'
 import { formatDuration } from '../utils/formatters'
 import { integerRangeRule, requiredRule } from '../utils/validationRules'
@@ -90,11 +92,8 @@ async function submit() {
   <q-page class="page-shell admin-page-shell">
     <div class="form-card admin-form-shell shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Administración</p>
-          <h2>Crear nuevo viaje</h2>
-        </div>
-        <q-btn flat icon="arrow_back" label="Volver al resumen" :to="{ name: 'admin-dashboard' }" class="back-navigation" />
+        <EncabezadoCompacto show-eyebrow eyebrow="Administración" title="Crear nuevo viaje" />
+        <BotonVolverResumen />
       </div>
 
       <q-form novalidate @submit.prevent="submit">

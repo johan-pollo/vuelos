@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRouter } from 'vue-router'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import api from '../services/api'
 import { formatDuration } from '../utils/formatters'
 import { useBookingStore } from '../stores/bookingStore'
@@ -269,10 +270,13 @@ function formatCurrency(value) {
         <div v-if="!visibleReservations.length" class="state-box"><p>No hay reservas con ese estado.</p></div>
         <q-card v-for="reservation in visibleReservations" :key="reservation._id" flat bordered :class="['reservation-card', `reservation-status-${paymentStatus(reservation).toLowerCase()}`]">
           <div class="page-header compact-header">
-            <div>
-              <p class="eyebrow">Código {{ reservation.codigo_reserva || reservation._id }}</p>
-              <h3 class="text-h6">{{ reservation.viaje?.ruta?.origen }} → {{ reservation.viaje?.ruta?.destino }}</h3>
-            </div>
+            <EncabezadoCompacto
+              show-eyebrow
+              :eyebrow="'Código ' + (reservation.codigo_reserva || reservation._id)"
+              :title="(reservation.viaje?.ruta?.origen || '') + ' → ' + (reservation.viaje?.ruta?.destino || '')"
+              title-tag="h3"
+              title-class="text-h6"
+            />
             <q-badge :color="paymentColor(reservation)">{{ paymentLabel(reservation) }}</q-badge>
           </div>
           <div class="reservation-leg-list">

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { Notify } from 'quasar'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useRouter } from 'vue-router'
 import { useBookingStore } from '../stores/bookingStore'
 import { useFlightStore } from '../stores/flightStore'
@@ -142,10 +143,11 @@ function formatCurrency(value) {
     <div v-else class="seat-layout">
       <q-card class="seat-panel shadow-2">
         <div class="page-header compact-header">
-          <div>
-            <p class="eyebrow">Asientos</p>
-            <h2>{{ selectedFlight?.ruta?.origen }} → {{ selectedFlight?.ruta?.destino }}</h2>
-          </div>
+          <EncabezadoCompacto
+            show-eyebrow
+            eyebrow="Asientos"
+            :title="(selectedFlight?.ruta?.origen || '') + ' → ' + (selectedFlight?.ruta?.destino || '')"
+          />
         </div>
 
         <q-tabs v-if="bookingStore.returnFlightId" v-model="selectedLeg" dense align="left" active-color="primary" indicator-color="primary">

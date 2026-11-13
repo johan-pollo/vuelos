@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useBookingStore } from '../stores/bookingStore'
 import { useFlightStore } from '../stores/flightStore'
 
@@ -37,10 +38,7 @@ function formatDateTime(value) {
   <q-page class="page-shell">
     <div class="summary-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Resumen</p>
-          <h2>Confirmar reserva</h2>
-        </div>
+        <EncabezadoCompacto show-eyebrow eyebrow="Resumen" title="Confirmar reserva" />
       </div>
 
       <div class="summary-box">

@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import { useRouter } from 'vue-router'
+import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
 import { useAuthStore } from '../stores/authStore'
 import { lengthRule, requiredRule } from '../utils/validationRules'
 
@@ -133,10 +134,7 @@ function confirmDeleteAccount() {
   <q-page class="page-shell">
     <div class="form-card shadow-2">
       <div class="page-header compact-header">
-        <div>
-          <p class="eyebrow">Cuenta · {{ authStore.user?.rol }}</p>
-          <h2>Mi perfil</h2>
-        </div>
+        <EncabezadoCompacto show-eyebrow :eyebrow="'Cuenta · ' + (authStore.user?.rol || '')" title="Mi perfil" />
         <q-btn v-if="!authStore.isAdmin" outline label="Mis reservas" :to="{ name: 'my-reservations' }" />
       </div>
 

@@ -32,8 +32,8 @@ function logout() {
         </q-toolbar-title>
 
         <div class="top-links">
-          <q-btn flat label="Inicio" to="/" />
-          <q-btn flat label="Vuelos" to="/vuelos" />
+          <q-btn flat label="Inicio" to="/" :class="{ 'nav-link-active': route.name === 'home' }" />
+          <q-btn flat label="Vuelos" to="/vuelos" :class="{ 'nav-link-active': route.name === 'flights' }" />
           <q-btn
             v-if="isAuthenticated && !isAdmin"
             flat
@@ -41,7 +41,21 @@ function logout() {
             :to="{ name: 'my-reservations' }"
             :class="{ 'nav-link-active': route.name === 'my-reservations' }"
           />
-          <q-btn v-if="!isAuthenticated" flat label="Iniciar sesión" to="/login" />
+          <q-btn
+            v-if="!isAuthenticated"
+            unelevated
+            label="Iniciar sesión"
+            to="/login"
+            class="nav-login-btn"
+            :class="{ 'nav-login-active': route.name === 'login' }"
+          />
+          <q-btn
+            v-if="!isAuthenticated"
+            outline
+            label="Crear cuenta"
+            to="/login?mode=register"
+            class="nav-register-btn"
+          />
           <template v-if="isAuthenticated && isAdmin">
             <q-btn flat label="Administración" to="/admin" />
           </template>
@@ -81,6 +95,9 @@ function logout() {
             </q-item>
             <q-item v-if="!isAuthenticated" v-close-popup clickable to="/login">
               <q-item-section>Iniciar sesión</q-item-section>
+            </q-item>
+            <q-item v-if="!isAuthenticated" v-close-popup clickable to="/login?mode=register">
+              <q-item-section>Crear cuenta</q-item-section>
             </q-item>
             <template v-if="isAuthenticated">
               <q-separator />
@@ -138,3 +155,18 @@ function logout() {
     </footer>
   </q-layout>
 </template>
+
+<style scoped>
+.top-links :deep(.nav-register-btn) {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--aero-red);
+  border-radius: 12px;
+  background: #fff !important;
+  color: var(--aero-red) !important;
+}
+
+.top-links :deep(.nav-register-btn:hover) {
+  background: var(--aero-red-soft) !important;
+}
+</style>
