@@ -711,8 +711,17 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
   }
   validarCamposPermitidos(req.body, [
     'viaje', 'asientos', 'pasajeros', 'regreso',
-    ...(esAdmin ? ['cliente'] : []),
+    ...(esAdmin ? ['cliente'] : ['metodo_pago', 'numero_tarjeta']),
   ]);
+  if (!esAdmin && req.body.metodo_pago !== 'TARJETA') {
+    return res.status(400).json({ error: 'Completa el pago con tarjeta para crear la reserva.' });
+  }
+  const numeroTarjeta = typeof req.body.numero_tarjeta === 'string'
+    ? req.body.numero_tarjeta
+    : '';
+  if (!esAdmin && !/^\d{16}$/.test(numeroTarjeta)) {
+    return res.status(400).json({ error: 'Ingresa un número de tarjeta completo de 16 dígitos.' });
+  }
   const clienteId = esAdmin ? req.body.cliente : req.usuario.clienteId;
   const { viaje: viajeId, asientos } = req.body;
   validarObjectId(clienteId, 'El cliente');
@@ -801,17 +810,26 @@ app.post('/api/reservas', exigirBaseDeDatos, autenticar, async (req, res) => {
     ...ida.boletos,
     ...(regreso ? regreso.boletos : []),
   ];
+  const montoTotal = boletosPreparados.reduce((total, boleto) => total + boleto.precio_pagado, 0);
+  const pagoCompletado = !esAdmin;
+  const referenciaPago = pagoCompletado
+    ? `SIM-${crypto.randomBytes(12).toString('hex').toUpperCase()}`
+    : undefined;
   const reserva = await Reserva.create({
     cliente: comprador._id,
     viaje: ida.viaje._id,
     ...(regreso ? { viaje_regreso: regreso.viaje._id } : {}),
     codigo_reserva: crypto.randomBytes(16).toString('hex').toUpperCase(),
-    monto_total: boletosPreparados.reduce((total, boleto) => total + boleto.precio_pagado, 0),
+    monto_total: montoTotal,
     estado: 'CONFIRMADA',
     pago: {
-      monto_pagado: 0,
-      metodo_pago: 'PENDIENTE',
-      estado_pago: 'PENDIENTE',
+      monto_pagado: pagoCompletado ? montoTotal : 0,
+      metodo_pago: pagoCompletado ? 'TARJETA' : 'PENDIENTE',
+      estado_pago: pagoCompletado ? 'COMPLETADO' : 'PENDIENTE',
+      ...(referenciaPago ? {
+        referencia_transaccion: referenciaPago,
+        fecha_pago: new Date(),
+      } : {}),
     },
   });
 
