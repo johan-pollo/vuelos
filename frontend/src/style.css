@@ -751,37 +751,6 @@ p {
   gap: 12px;
 }
 
-.passenger-list {
-  overflow-x: auto;
-  border: 1px solid var(--aero-line);
-  border-radius: 14px;
-}
-
-.passenger-list-header,
-.passenger-list-row {
-  display: grid;
-  grid-template-columns: 0.6fr 1.3fr 1fr 1fr 1.2fr 0.8fr;
-  align-items: center;
-  gap: 12px;
-  min-width: 820px;
-  padding: 12px 16px;
-}
-
-.passenger-list-header {
-  background: #f8f9fb;
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 700;
-}
-
-.passenger-list-row + .passenger-list-row {
-  border-top: 1px solid var(--aero-line);
-}
-
-.passenger-list-row strong {
-  color: var(--aero-navy);
-}
-
 .flight-destination-photo-wrap {
   height: 156px;
   margin: 14px 0;

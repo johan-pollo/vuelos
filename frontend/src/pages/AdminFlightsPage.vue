@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { Dialog, Notify } from 'quasar'
 import BotonVolverResumen from '../components/BotonVolverResumen.vue'
+import TablaDatos from '../components/TablaDatos.vue'
 import api from '../services/api'
 
 const flights = ref([])
@@ -20,6 +21,16 @@ const visibleFlights = computed(() => flights.value
       && (!filters.fecha_salida || date === filters.fecha_salida)
       && (!filters.estado || flightStatus(flight) === filters.estado)
   }))
+const columnas = [
+  { key: 'origen', label: 'Origen', valor: flight => flight.ruta?.origen },
+  { key: 'destino', label: 'Destino', valor: flight => flight.ruta?.destino },
+  { key: 'vehiculo', label: 'Vehículo', valor: flight => flight.vehiculo?.placa_o_matricula },
+  { key: 'salida', label: 'Salida', valor: flight => new Date(flight.fecha_hora_salida).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) },
+  { key: 'estado', label: 'Estado', valor: flight => flightStatusLabel(flight) },
+  { key: 'precio', label: 'Precio', valor: flight => formatCurrency(flight.precio_base) },
+  { key: 'asientos', label: 'Disponibles', valor: flight => flight.asientos_disponibles },
+  { key: 'acciones', label: 'Acciones', valor: flight => flight._id },
+]
 
 let clockInterval
 
@@ -119,18 +130,14 @@ function formatCurrency(value) {
         <p>Cargando viajes...</p>
       </div>
 
-      <div v-else class="table-wrap">
-        <q-table :rows="visibleFlights" :columns="[
-          { name: 'origen', label: 'Origen', field: row => row.ruta?.origen },
-          { name: 'destino', label: 'Destino', field: row => row.ruta?.destino },
-          { name: 'vehiculo', label: 'Vehículo', field: row => row.vehiculo?.placa_o_matricula },
-          { name: 'salida', label: 'Salida', field: row => new Date(row.fecha_hora_salida).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }) },
-          { name: 'estado', label: 'Estado', field: row => flightStatusLabel(row) },
-          { name: 'precio', label: 'Precio', field: row => formatCurrency(row.precio_base) },
-          { name: 'asientos', label: 'Disponibles', field: row => row.asientos_disponibles },
-          { name: 'acciones', label: 'Acciones', field: '_id' },
-        ]" row-key="_id" flat bordered>
-          <template #top>
+      <div v-else>
+        <TablaDatos
+          :columnas="columnas"
+          :filas="visibleFlights"
+          fila-clave="_id"
+          mensaje-vacio="No hay vuelos que coincidan con los filtros."
+        >
+          <template #superior>
             <div class="form-grid admin-flight-filters" aria-label="Filtros de vuelos">
               <q-input v-model="filters.origen" label="Ciudad de origen" outlined dense maxlength="100" clearable />
               <q-input v-model="filters.destino" label="Ciudad de destino" outlined dense maxlength="100" clearable />
@@ -153,21 +160,19 @@ function formatCurrency(value) {
               />
             </div>
           </template>
-          <template #body-cell-acciones="props">
-            <q-td :props="props">
-              <q-btn
-                v-if="props.row.estado !== 'CANCELADO' && new Date(props.row.fecha_hora_salida) > new Date(now)"
-                flat
-                round
-                color="warning"
-                icon="block"
-                aria-label="Cancelar vuelo"
-                @click="cancelFlight(props.row)"
-              />
-              <q-btn flat round color="negative" icon="delete" aria-label="Eliminar viaje" @click="deleteFlight(props.row)" />
-            </q-td>
+          <template #acciones="{ fila }">
+            <q-btn
+              v-if="fila.estado !== 'CANCELADO' && new Date(fila.fecha_hora_salida) > new Date(now)"
+              flat
+              round
+              color="warning"
+              icon="block"
+              aria-label="Cancelar vuelo"
+              @click="cancelFlight(fila)"
+            />
+            <q-btn flat round color="negative" icon="delete" aria-label="Eliminar viaje" @click="deleteFlight(fila)" />
           </template>
-        </q-table>
+        </TablaDatos>
       </div>
     </div>
   </q-page>

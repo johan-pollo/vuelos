@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { Notify } from 'quasar'
 import BotonVolverResumen from '../components/BotonVolverResumen.vue'
 import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
+import TablaDatos from '../components/TablaDatos.vue'
 import api from '../services/api'
 
 const reservations = ref([])
@@ -21,6 +22,21 @@ const filteredReservations = computed(() => reservations.value.filter((r) => {
   const matchCodigo = !filters.codigo || (r.codigo_reserva || '').includes(filters.codigo.trim().toUpperCase())
   return matchCliente && matchEstado && matchCodigo
 }))
+const columnas = [
+  { key: 'cliente', label: 'Cliente', valor: reservation => `${reservation.cliente?.nombre || ''} ${reservation.cliente?.apellido || ''}`.trim() },
+  { key: 'codigo', label: 'Código', valor: reservation => reservation.codigo_reserva?.slice(0, 8) || '—' },
+  {
+    key: 'viaje',
+    label: 'Viaje',
+    valor: reservation => [
+      `${reservation.viaje?.ruta?.origen || ''} → ${reservation.viaje?.ruta?.destino || ''}`.trim(),
+      reservation.viaje_regreso ? `${reservation.viaje_regreso.ruta?.origen || ''} → ${reservation.viaje_regreso.ruta?.destino || ''} (regreso)` : '',
+    ].filter(Boolean).join(' · '),
+  },
+  { key: 'estado', label: 'Estado', valor: reservation => reservation.estado },
+  { key: 'pago', label: 'Pago', valor: reservation => paymentStatus(reservation) },
+  { key: 'total', label: 'Total', valor: reservation => formatCurrency(reservation.monto_total) },
+]
 
 onMounted(async () => {
   loading.value = true
@@ -106,28 +122,17 @@ function passengerForSeat(seatNumber) {
         <p>Cargando reservas...</p>
       </div>
 
-      <div v-else class="table-wrap">
-        <q-table
-          :rows="filteredReservations"
-          :columns="[
-            { name: 'cliente', label: 'Cliente', field: row => `${row.cliente?.nombre || ''} ${row.cliente?.apellido || ''}`.trim() },
-            { name: 'codigo', label: 'Código', field: row => row.codigo_reserva?.slice(0, 8) || '—' },
-            { name: 'viaje', label: 'Viaje', field: row => [
-              `${row.viaje?.ruta?.origen || ''} → ${row.viaje?.ruta?.destino || ''}`.trim(),
-              row.viaje_regreso ? `${row.viaje_regreso.ruta?.origen || ''} → ${row.viaje_regreso.ruta?.destino || ''} (regreso)` : '',
-            ].filter(Boolean).join(' · ') },
-            { name: 'estado', label: 'Estado', field: row => row.estado },
-            { name: 'pago', label: 'Pago', field: row => paymentStatus(row) },
-            { name: 'total', label: 'Total', field: row => formatCurrency(row.monto_total) },
-          ]"
-          row-key="_id"
-          @row-click="(_, row) => selectReservation(row)"
-          flat
-          bordered
-          v-model:pagination="pagination"
+      <div v-else>
+        <TablaDatos
+          :columnas="columnas"
+          :filas="filteredReservations"
+          fila-clave="_id"
+          mensaje-vacio="No hay reservas que coincidan con los filtros."
+          v-model:paginacion="pagination"
           class="admin-reservations-table"
+          @click-fila="selectReservation"
         >
-          <template #top>
+          <template #superior>
             <div class="admin-reservations-filters">
               <q-input v-model="filters.cliente" label="Cliente" outlined dense clearable maxlength="100" style="min-width: 180px; flex: 1" />
               <q-input v-model="filters.codigo" label="Código de reserva" outlined dense clearable maxlength="32" style="min-width: 180px; flex: 1" />
@@ -148,7 +153,7 @@ function passengerForSeat(seatNumber) {
               />
             </div>
           </template>
-        </q-table>
+        </TablaDatos>
         <q-card v-if="selectedReservation" flat bordered class="admin-reservation-seat-map q-mt-md">
           <div class="page-header compact-header">
             <EncabezadoCompacto

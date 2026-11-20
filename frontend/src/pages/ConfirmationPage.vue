@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Notify } from 'quasar'
 import EncabezadoCompacto from '../components/EncabezadoCompacto.vue'
+import TablaDatos from '../components/TablaDatos.vue'
 import { useBookingStore } from '../stores/bookingStore'
 import { useFlightStore } from '../stores/flightStore'
 
@@ -10,8 +11,22 @@ const router = useRouter()
 const bookingStore = useBookingStore()
 const flightStore = useFlightStore()
 const flightsLoading = ref(true)
+const columnasPasajeros = [
+  { key: 'asiento', label: 'Asiento', ancho: '0.6fr' },
+  { key: 'pasajero', label: 'Pasajero', ancho: '1.3fr' },
+  { key: 'documento', label: 'Documento', ancho: '1fr' },
+  { key: 'telefono', label: 'Teléfono', ancho: '1fr' },
+  { key: 'tipoClase', label: 'Tipo / clase', ancho: '1.2fr' },
+  { key: 'valor', label: 'Valor', ancho: '0.8fr' },
+]
 const selectedFlight = computed(() => flightStore.flights.find((flight) => flight._id === bookingStore.selectedFlightId) || null)
 const returnFlight = computed(() => flightStore.flights.find((flight) => flight._id === bookingStore.returnFlightId) || null)
+const filasIda = computed(() => selectedFlight.value
+  ? crearFilasPasajeros(bookingStore.passengers, bookingStore.selectedSeats, selectedFlight.value)
+  : [])
+const filasRegreso = computed(() => returnFlight.value
+  ? crearFilasPasajeros(bookingStore.returnPassengers, bookingStore.returnSeats, returnFlight.value)
+  : [])
 const canConfirmReservation = computed(() => !flightsLoading.value
   && Boolean(selectedFlight.value)
   && (!bookingStore.returnFlightId || Boolean(returnFlight.value)))
@@ -39,6 +54,22 @@ function formatCurrency(value) {
     currency: 'COP',
     maximumFractionDigits: 0,
   }).format(value || 0)
+}
+
+function crearFilasPasajeros(pasajeros, asientos, vuelo) {
+  return pasajeros.map((pasajero, index) => {
+    const asiento = asientos[index]
+    const detalle = seatDetails(vuelo, asiento)
+    return {
+      id: `${asiento}-${index}`,
+      asiento,
+      pasajero: `${pasajero.nombre} ${pasajero.apellido}`,
+      documento: pasajero.documento_identidad,
+      telefono: pasajero.telefono || '—',
+      tipoClase: `${detalle.type} · ${detalle.seatClass}`,
+      valor: formatCurrency(detalle.price),
+    }
+  })
 }
 
 function formatDateTime(value) {
@@ -138,17 +169,17 @@ function continueToPayment() {
             <h3>Pasajeros y asientos · Ida</h3>
             <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
           </div>
-          <div class="passenger-list">
-            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Teléfono</span><span>Tipo / clase</span><span>Valor</span></div>
-            <div v-for="(passenger, index) in bookingStore.passengers" :key="`passenger-${index}`" class="passenger-list-row">
-              <strong>{{ bookingStore.selectedSeats[index] }}</strong>
-              <strong>{{ passenger.nombre }} {{ passenger.apellido }}</strong>
-              <span>{{ passenger.documento_identidad }}</span>
-              <span>{{ passenger.telefono || '—' }}</span>
-              <span>{{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).type }} · {{ seatDetails(selectedFlight, bookingStore.selectedSeats[index]).seatClass }}</span>
-              <span>{{ formatCurrency(seatDetails(selectedFlight, bookingStore.selectedSeats[index]).price) }}</span>
-            </div>
-          </div>
+          <TablaDatos
+            :columnas="columnasPasajeros"
+            :filas="filasIda"
+            variante="rejilla"
+            fila-clave="id"
+            color-encabezado="#f8f9fb"
+            mensaje-vacio="No hay pasajeros para mostrar."
+          >
+            <template #celda-asiento="{ valor }"><strong>{{ valor }}</strong></template>
+            <template #celda-pasajero="{ valor }"><strong>{{ valor }}</strong></template>
+          </TablaDatos>
         </section>
 
         <section v-if="returnFlight" class="passenger-details-section">
@@ -156,17 +187,17 @@ function continueToPayment() {
             <h3>Pasajeros y asientos · Regreso</h3>
             <q-btn flat color="primary" icon="edit" label="Editar" :to="{ name: 'passenger' }" />
           </div>
-          <div class="passenger-list">
-            <div class="passenger-list-header"><span>Asiento</span><span>Pasajero</span><span>Documento</span><span>Teléfono</span><span>Tipo / clase</span><span>Valor</span></div>
-            <div v-for="(passenger, index) in bookingStore.returnPassengers" :key="`return-passenger-${index}`" class="passenger-list-row">
-              <strong>{{ bookingStore.returnSeats[index] }}</strong>
-              <strong>{{ passenger.nombre }} {{ passenger.apellido }}</strong>
-              <span>{{ passenger.documento_identidad }}</span>
-              <span>{{ passenger.telefono || '—' }}</span>
-              <span>{{ seatDetails(returnFlight, bookingStore.returnSeats[index]).type }} · {{ seatDetails(returnFlight, bookingStore.returnSeats[index]).seatClass }}</span>
-              <span>{{ formatCurrency(seatDetails(returnFlight, bookingStore.returnSeats[index]).price) }}</span>
-            </div>
-          </div>
+          <TablaDatos
+            :columnas="columnasPasajeros"
+            :filas="filasRegreso"
+            variante="rejilla"
+            fila-clave="id"
+            color-encabezado="#f8f9fb"
+            mensaje-vacio="No hay pasajeros para mostrar."
+          >
+            <template #celda-asiento="{ valor }"><strong>{{ valor }}</strong></template>
+            <template #celda-pasajero="{ valor }"><strong>{{ valor }}</strong></template>
+          </TablaDatos>
         </section>
         <div class="summary-total"><strong>Total de la reserva: {{ formatCurrency(total) }}</strong></div>
       </template>
